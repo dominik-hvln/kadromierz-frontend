@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CreateUserForm } from '@/components/users/CreateUserForm';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface User { id: string; first_name: string; last_name: string; email: string; role: string; }
 
@@ -29,6 +30,7 @@ export default function UsersPage() {
     const handleUserCreated = () => { setIsDialogOpen(false); fetchUsers(); };
 
     return (
+        <DashboardLayout>
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Użytkownicy</h1>
@@ -52,5 +54,6 @@ export default function UsersPage() {
                 </Table>
             </div>
         </div>
+        </DashboardLayout>
     );
 }

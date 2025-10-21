@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { CreateTaskForm } from '@/components/tasks/CreateTaskForm';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 // Definicje typów dla danych
 interface Project {
@@ -118,6 +119,7 @@ export default function ProjectDetailsPage() {
     if (!project) return <div className="p-4">Nie znaleziono projektu.</div>;
 
     return (
+        <DashboardLayout>
         <div>
             <h1 className="text-3xl font-bold">{project.name}</h1>
             <p className="text-muted-foreground">{project.description}</p>
@@ -210,5 +212,6 @@ export default function ProjectDetailsPage() {
                 </DialogContent>
             </Dialog>
         </div>
+        </DashboardLayout>
     );
 }
