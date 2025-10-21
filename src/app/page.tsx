@@ -1,22 +1,11 @@
-// src/app/(dashboard)/page.tsx
 'use client';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-import { useAuthStore } from '@/store/auth.store';
-import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
-import { EmployeeDashboard } from '@/components/dashboard/EmployeeDashboard';
-
-export default function DashboardDispatcherPage() {
-    const { user } = useAuthStore();
-
-    if (!user) {
-        // Można tu dodać jakiś loader/spinner
-        return <div>Ładowanie...</div>;
-    }
-
-    if (user.role === 'employee') {
-        return <EmployeeDashboard />;
-    }
-
-    // Domyślnie dla admina, super_admina i managera
-    return <AdminDashboard />;
+export default function RootPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/login');
+    }, [router]);
+    return <div>Przekierowywanie...</div>;
 }

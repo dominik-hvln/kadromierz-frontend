@@ -1,26 +1,22 @@
-'use client';
-
 import './globals.css';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/auth.store';
-import Sidebar from '../components/layout/Sidebar';
-import Header from '../components/layout/Header';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from '@/components/ui/sonner'; // Możemy przenieść Toaster tutaj
 
-export default function DashboardLayout({
-    children,
-}: {
+export const metadata = {
+    title: 'Aplikacja Czasu Pracy',
+    description: 'Zarządzanie czasem pracy w terenie',
+};
+
+export default function RootLayout({
+                                       children,
+                                   }: {
     children: React.ReactNode;
 }) {
     return (
-        <div className="flex h-screen bg-gray-100">
-            <Sidebar />
-            <div className="flex-1 flex flex-col">
-                <Header />
-                <main className="flex-1 p-6">{children}</main>
-                <Toaster richColors />
-            </div>
-        </div>
+        <html lang="pl">
+        <body>
+        {children}
+        <Toaster richColors />
+        </body>
+        </html>
     );
 }
