@@ -2,11 +2,11 @@ import Link from 'next/link';
 import {Home, FolderKanban, Users, Clock, MapPin} from 'lucide-react';
 
 export const navLinks = [
-    { href: '/', label: 'Panel Główny', icon: Home },
-    { href: '/projects', label: 'Projekty', icon: FolderKanban },
-    { href: '/users', label: 'Użytkownicy', icon: Users },
-    { href: '/entries', label: 'Ewidencja Czasu', icon: Clock },
-    { href: '/locations', label: 'Kody Ogólne', icon: MapPin },
+    { href: '/dashboard', label: 'Panel Główny', icon: Home },
+    { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban },
+    { href: '/dashboard/users', label: 'Użytkownicy', icon: Users },
+    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock },
+    { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin },
 ];
 
 export default function Sidebar() {
