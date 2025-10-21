@@ -52,7 +52,7 @@ export default function RegisterPage() {
             setCompanyName('');
 
             setTimeout(() => {
-                router.push('/login');
+                router.push('/');
             }, 3000);
 
         } catch (err) {
@@ -108,7 +108,7 @@ export default function RegisterPage() {
                             </div>
                             <div className="mt-4 text-center text-sm">
                                 Masz już konto?{' '}
-                                <Link href="/login" className="underline">
+                                <Link href="/" className="underline">
                                     Zaloguj się
                                 </Link>
                             </div>
