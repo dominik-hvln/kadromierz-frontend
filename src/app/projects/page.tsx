@@ -128,7 +128,7 @@ export default function ProjectsPage() {
                             {projects.map((project) => (
                                 <TableRow key={project.id}>
                                     <TableCell className="font-medium">
-                                        <Link href={`/projects/${project.id}`} className="hover:underline">
+                                        <Link href={`/frontend/src/app/projects/${project.id}`} className="hover:underline">
                                             {project.name}
                                         </Link>
                                     </TableCell>

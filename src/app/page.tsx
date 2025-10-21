@@ -1,8 +1,22 @@
-export default function RootPage() {
-    return (
-        <div>
-            <h1>Strona Główna Działa!</h1>
-            <p>Jeśli widzisz ten tekst, Vercel poprawnie serwuje stronę główną.</p>
-        </div>
-    );
+// src/app/(dashboard)/page.tsx
+'use client';
+
+import { useAuthStore } from '@/store/auth.store';
+import { AdminDashboard } from '@/components/dashboard/AdminDashboard';
+import { EmployeeDashboard } from '@/components/dashboard/EmployeeDashboard';
+
+export default function DashboardDispatcherPage() {
+    const { user } = useAuthStore();
+
+    if (!user) {
+        // Można tu dodać jakiś loader/spinner
+        return <div>Ładowanie...</div>;
+    }
+
+    if (user.role === 'employee') {
+        return <EmployeeDashboard />;
+    }
+
+    // Domyślnie dla admina, super_admina i managera
+    return <AdminDashboard />;
 }
