@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 flex flex-col">
                 <Header />
                 <main className="flex-1 p-6 overflow-y-auto">{children}</main>
-                {/* <Toaster richColors /> Jeśli przeniosłeś go do RootLayout, usuń stąd */}
+                <Toaster richColors />
             </div>
         </div>
     );

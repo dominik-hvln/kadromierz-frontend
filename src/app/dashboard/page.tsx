@@ -11,23 +11,17 @@ export default function DashboardDispatcherPage() {
 
     if (!user) {
         return (
-            <DashboardLayout>
-                <div>Ładowanie...</div>
-            </DashboardLayout>
+            <div>Ładowanie...</div>
         )
     }
 
     if (user.role === 'employee') {
         return (
-            <DashboardLayout>
-                <EmployeeDashboard />
-            </DashboardLayout>
+            <EmployeeDashboard />
         )
     }
 
     return (
-        <DashboardLayout>
-            <AdminDashboard />
-        </DashboardLayout>
+        <AdminDashboard />
     )
 }
