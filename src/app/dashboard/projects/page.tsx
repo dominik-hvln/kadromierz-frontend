@@ -1,10 +1,8 @@
-// src/app/(dashboard)/projects/page.tsx
 'use client';
 import { useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/api';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
     Table,
     TableBody,
@@ -96,7 +94,6 @@ export default function ProjectsPage() {
     };
 
     return (
-        <DashboardLayout>
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Projekty</h1>
@@ -173,6 +170,5 @@ export default function ProjectsPage() {
                 </DialogContent>
             </Dialog>
         </div>
-        </DashboardLayout>
     );
 }

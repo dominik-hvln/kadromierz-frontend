@@ -20,7 +20,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label'; // Poprawiony import Label
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface TimeEntry {
     id: string;
@@ -141,7 +140,6 @@ export default function TimeEntriesPage() {
     };
 
     return (
-        <DashboardLayout>
         <div>
             <h1 className="text-3xl font-bold mb-6">Ewidencja Czasu Pracy</h1>
 
@@ -293,6 +291,5 @@ export default function TimeEntriesPage() {
                 </DialogContent>
             </Dialog>
         </div>
-        </DashboardLayout>
     );
 }

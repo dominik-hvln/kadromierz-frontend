@@ -13,7 +13,6 @@ import QRCode from 'react-qr-code';
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AxiosError } from 'axios';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface LocationCode {
     id: string;
@@ -94,7 +93,6 @@ export default function LocationCodesPage() {
     };
 
     return (
-        <DashboardLayout>
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Kody Ogólne / Lokalizacyjne</h1>
@@ -192,6 +190,5 @@ export default function LocationCodesPage() {
                 </DialogContent>
             </Dialog>
         </div>
-    </DashboardLayout>
     );
 }
