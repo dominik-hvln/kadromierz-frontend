@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import QRCode from 'react-qr-code';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CreateTaskForm } from '@/components/tasks/CreateTaskForm';
+import { AssignUserForm } from '@/components/tasks/AssignUserForm';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -24,6 +25,7 @@ interface Project {
     geo_radius_meters: number | null;
 }
 interface Task { id: string; name: string; description: string; }
+interface User { id: string; first_name: string; last_name: string; email: string; }
 
 export default function ProjectDetailsPage() {
     const params = useParams();
@@ -32,9 +34,11 @@ export default function ProjectDetailsPage() {
 
     const [project, setProject] = useState<Project | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [companyUsers, setCompanyUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [selectedTaskQr, setSelectedTaskQr] = useState<string | null>(null);
+    const [taskToAssign, setTaskToAssign] = useState<Task | null>(null);
 
     // Stany dla edycji geofence
     const [geofence, setGeofence] = useState({ lat: 52.4064, lng: 16.9252 });
@@ -49,13 +53,14 @@ export default function ProjectDetailsPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [projectRes, tasksRes] = await Promise.all([
+            const [projectRes, tasksRes, usersRes] = await Promise.all([
                 api.get(`/projects/${projectId}`),
-                // ✅ POPRAWIONY ADRES URL
                 api.get(`/tasks/in-project/${projectId}`),
+                api.get('/users'), // Pobieramy listę wszystkich użytkowników w firmie
             ]);
             setProject(projectRes.data);
             setTasks(tasksRes.data);
+            setCompanyUsers(usersRes.data);
 
             if (projectRes.data.geo_latitude && projectRes.data.geo_longitude) {
                 setGeofence({ lat: projectRes.data.geo_latitude, lng: projectRes.data.geo_longitude });
@@ -145,13 +150,9 @@ export default function ProjectDetailsPage() {
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold">Zlecenia (Taski)</h2>
                     <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button>Dodaj Zlecenie</Button>
-                        </DialogTrigger>
+                        <DialogTrigger asChild><Button>Dodaj Zlecenie</Button></DialogTrigger>
                         <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Nowe zlecenie dla: {project.name}</DialogTitle>
-                            </DialogHeader>
+                            <DialogHeader><DialogTitle>Nowe zlecenie dla: {project.name}</DialogTitle></DialogHeader>
                             <CreateTaskForm projectId={projectId} onSuccess={handleTaskCreated} />
                         </DialogContent>
                     </Dialog>
@@ -171,17 +172,14 @@ export default function ProjectDetailsPage() {
                                     <TableRow key={task.id}>
                                         <TableCell>{task.name}</TableCell>
                                         <TableCell>{task.description}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="outline" onClick={() => handleGenerateQr(task.id)}>
-                                                Generuj QR
-                                            </Button>
+                                        <TableCell className="text-right space-x-2">
+                                            <Button variant="outline" size="sm" onClick={() => setTaskToAssign(task)}>Zarządzaj</Button>
+                                            <Button variant="outline" size="sm" onClick={() => handleGenerateQr(task.id)}>Generuj QR</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
-                                <TableRow>
-                                    <TableCell colSpan={3} className="text-center">Brak zdefiniowanych zleceń.</TableCell>
-                                </TableRow>
+                                <TableRow><TableCell colSpan={3} className="text-center">Brak zdefiniowanych zleceń.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -207,6 +205,15 @@ export default function ProjectDetailsPage() {
                             Pobierz jako SVG
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={!!taskToAssign} onOpenChange={() => setTaskToAssign(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Przypisz do zlecenia</DialogTitle>
+                        <DialogDescription>{taskToAssign?.name}</DialogDescription>
+                    </DialogHeader>
+                    {taskToAssign && <AssignUserForm taskId={taskToAssign.id} companyUsers={companyUsers} />}
                 </DialogContent>
             </Dialog>
         </div>
