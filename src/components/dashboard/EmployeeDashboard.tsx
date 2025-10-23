@@ -58,7 +58,7 @@ export function EmployeeDashboard() {
         try {
             const [entryRes, tasksRes] = await Promise.all([
                 api.get('/time-entries/my-active'),
-                api.get('/tasks'),
+                api.get('/tasks/my'),
             ]);
             console.log('[fetchData] Otrzymano activeEntry:', entryRes.data);
             setActiveEntry(entryRes.data || null); // Ustawiamy null, jeśli API zwróci pustą odpowiedź
