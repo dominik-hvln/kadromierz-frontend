@@ -78,7 +78,7 @@ export default function LoginPage() {
                 }
             }
 
-            router.push('/dashboard/entries');
+            router.push('/dashboard');
 
         } catch (err: unknown) {
             if (err instanceof AxiosError) {
