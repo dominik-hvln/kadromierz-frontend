@@ -41,7 +41,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                         key={link.href}
                         href={link.href}
                         className={cn(
-                            "flex items-center gap-3 rounded-xl px-3 py-2 transition-all",
+                            "flex items-center gap-3 rounded-[25px] px-3 py-2 transition-all",
                             isActive
                                 ? "bg-primary text-primary-foreground" // Styl aktywnego linku (czarne tło, biały tekst)
                                 : "text-muted-foreground hover:bg-muted" // Styl domyślny

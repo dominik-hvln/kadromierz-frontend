@@ -96,9 +96,8 @@ export function ActivityFeed() {
     }
 
     return (
-        // ✅ Stosujemy klasę glassmorphism i usuwamy Card
         <div className="glassmorphism-box p-6">
-            <h2 className="text-xl font-semibold">Aktywność na Żywo</h2>
+            <h2 className="text-xl font-semibold mb-4">Aktywność na Żywo</h2>
             <ul className="space-y-6">
                 {events.length > 0 ? (
                     events.map((event, index) => (

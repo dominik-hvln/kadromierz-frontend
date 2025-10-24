@@ -42,7 +42,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.725rem;
     --background: oklch(0.98 0.01 240);
   --foreground: oklch(0.129 0.042 264.695);
   --card: oklch(1 0 0);
@@ -120,7 +120,7 @@
     }
 
     .glassmorphism-box {
-        @apply rounded-xl border border-white/20 shadow-lg bg-card/70; /* <-- Kluczowa zmiana: dodano bg-card/70 */
+        @apply rounded-[20px] border border-white/20 shadow-sm bg-card/35; /* <-- Kluczowa zmiana: dodano bg-card/70 */
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
     }

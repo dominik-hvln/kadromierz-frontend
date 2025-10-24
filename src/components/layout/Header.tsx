@@ -57,16 +57,16 @@ export default function Header() {
             </div>
 
             {/* Menu użytkownika po prawej */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 bg-[#fff]/65 px-4 py-2 rounded-full shadow-sm">
         <span className="text-sm text-gray-600">
           Witaj, <strong>{user?.first_name || 'Użytkowniku'}</strong>!
         </span>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                            <Avatar className="h-10 w-10">
+                            <Avatar className="h-10 w-10 bg-[#fff]">
                                 <AvatarImage src="" alt="Avatar" />
-                                <AvatarFallback className="text-sm">
+                                <AvatarFallback className="text-sm ">
                                     {getInitials(user?.first_name, user?.last_name)}
                                 </AvatarFallback>
                             </Avatar>

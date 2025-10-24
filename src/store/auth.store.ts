@@ -13,12 +13,13 @@ interface User {
 
 interface AuthState {
     token: string | null;
+    refreshToken: string | null; // ✅ NOWE POLE
     user: User | null;
     isAuthenticated: boolean;
-    isHydrating: boolean; // Zmieniamy na pole wymagane
-    setSession: (token: string, userProfile: User) => void;
+    isHydrating: boolean;
+    setSession: (token: string, refreshToken: string, userProfile: User) => void;
     logout: () => void;
-    _setIsHydrating: (status: boolean) => void; // Funkcja pomocnicza
+    _setIsHydrating: (status: boolean) => void;
 }
 
 const capacitorStorage = {
@@ -38,12 +39,23 @@ export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
             token: null,
+            refreshToken: null,
             user: null,
             isAuthenticated: false,
             isHydrating: true, // 1. Ustawiamy wartość początkową tutaj
-            setSession: (token, userProfile) => set({ token, user: userProfile, isAuthenticated: true }),
-            logout: () => set({ token: null, user: null, isAuthenticated: false }),
-            _setIsHydrating: (status) => set({ isHydrating: status }), // 2. Definiujemy funkcję do zmiany
+            setSession: (token, refreshToken, userProfile) => set({
+                token,
+                refreshToken,
+                user: userProfile,
+                isAuthenticated: true
+            }),
+            logout: () => set({
+                token: null,
+                refreshToken: null,
+                user: null,
+                isAuthenticated: false
+            }),
+            _setIsHydrating: (status) => set({ isHydrating: status }),
         }),
         {
             name: 'auth-storage',
