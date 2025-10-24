@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react'; // Dodaj useCallback
+import {useEffect, useState, useCallback, useMemo} from 'react'; // Dodaj useCallback
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label'; // Poprawiony import Label
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { FileDown } from 'lucide-react';
 
 interface TimeEntry {
     id: string;
@@ -50,6 +53,89 @@ export default function TimeEntriesPage() {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
+
+    const totalDurationMinutes = useMemo(() => {
+        return entries.reduce((total, entry) => {
+            if (entry.end_time) {
+                const start = new Date(entry.start_time);
+                const end = new Date(entry.end_time);
+                if (isValid(start) && isValid(end)) {
+                    const diff = differenceInMinutes(end, start);
+                    return total + (diff > 0 ? diff : 0);
+                }
+            }
+            return total;
+        }, 0);
+    }, [entries]);
+
+    const totalHours = Math.floor(totalDurationMinutes / 60);
+    const totalMinutes = totalDurationMinutes % 60;
+
+    const handleExportCSV = () => {
+        const headers = "Pracownik;Projekt;Zlecenie;Data Rozpoczęcia;Czas Rozpoczęcia;Data Zakończenia;Czas Zakończenia;Czas Trwania (min)\n";
+
+        const rows = entries.map(entry => {
+            const start = new Date(entry.start_time);
+            const end = entry.end_time ? new Date(entry.end_time) : null;
+            const durationMin = end ? differenceInMinutes(end, start) : 0;
+
+            return [
+                `"${entry.user.first_name} ${entry.user.last_name}"`,
+                `"${entry.project?.name || '-'}"`,
+                `"${entry.task?.name || 'Ogólny'}"`,
+                start.toLocaleDateString('pl-PL'),
+                start.toLocaleTimeString('pl-PL'),
+                end ? end.toLocaleDateString('pl-PL') : '-',
+                end ? end.toLocaleTimeString('pl-PL') : '-',
+                durationMin
+            ].join(';');
+        }).join('\n');
+
+        const csvContent = headers + rows;
+        const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // \uFEFF dla poprawnego kodowania polskich znaków w Excelu
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'raport_czasu_pracy.csv';
+        link.click();
+    };
+
+    const handleExportPDF = () => {
+        const doc = new jsPDF();
+
+        // Tytuł
+        doc.text("Raport Ewidencji Czasu Pracy", 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Filtry: ${date?.from ? format(date.from, 'dd.MM.yyyy') : ''} - ${date?.to ? format(date.to, 'dd.MM.yyyy') : ''}`, 14, 25);
+
+        // Definicja tabeli
+        const tableColumn = ["Pracownik", "Projekt / Zlecenie", "Start", "Koniec", "Czas Trwania"];
+        const tableRows: (string | number)[][] = [];
+
+        entries.forEach(entry => {
+            const row = [
+                `${entry.user.first_name} ${entry.user.last_name}`,
+                `${entry.project?.name || '-'} / ${entry.task?.name || 'Ogólny'}`,
+                new Date(entry.start_time).toLocaleString('pl-PL'),
+                entry.end_time ? new Date(entry.end_time).toLocaleString('pl-PL') : '-',
+                formatDuration(entry.start_time, entry.end_time)
+            ];
+            tableRows.push(row);
+        });
+
+        // Dodanie tabeli
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+        });
+
+        // Dodanie podsumowania
+        const finalY = (doc as any).lastAutoTable.finalY; // Pobierz pozycję końca tabeli
+        doc.setFontSize(12);
+        doc.text(`Łączny czas pracy: ${totalHours}h ${totalMinutes}m`, 14, finalY + 10);
+
+        doc.save('raport_czasu_pracy.pdf');
+    };
 
     const fetchTimeEntries = useCallback(async () => {
         setIsLoading(true);
@@ -163,8 +249,23 @@ export default function TimeEntriesPage() {
                 </Select>
 
                 <Button onClick={fetchTimeEntries}>Filtruj</Button>
+                <div className="flex gap-2 ml-auto">
+                    <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                        <FileDown className="mr-2 h-4 w-4" /> CSV
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                        <FileDown className="mr-2 h-4 w-4" /> PDF
+                    </Button>
+                </div>
             </div>
-
+            <div className="mb-4">
+                <h3 className="text-lg font-semibold">
+                    Podsumowanie dla wybranych filtrów
+                </h3>
+                <p className="text-muted-foreground">
+                    Łączny czas pracy: <span className="font-bold text-primary">{totalHours} godzin {totalMinutes} minut</span>
+                </p>
+            </div>
             <div className="border rounded-lg">
                 <Table>
                     <TableHeader>
