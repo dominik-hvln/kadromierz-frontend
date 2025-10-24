@@ -120,7 +120,8 @@
     }
 
     .glassmorphism-box {
-        @apply rounded-xl border border-white/20 bg-white/70 shadow-lg;
+        @apply rounded-xl border border-white/20 shadow-lg;
+        background-color: oklch(var(--card) / 0.7); /* 70% opacity */
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
     }

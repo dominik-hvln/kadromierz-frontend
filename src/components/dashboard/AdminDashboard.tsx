@@ -150,7 +150,6 @@ export function AdminDashboard() {
 
             {/* Kolumna prawa (węższa) - Aktywności */}
             <div className="lg:col-span-1 space-y-6">
-                <h2 className="text-xl font-semibold">Aktywność na Żywo</h2>
                 <ActivityFeed />
             </div>
         </div>
