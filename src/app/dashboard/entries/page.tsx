@@ -130,7 +130,7 @@ export default function TimeEntriesPage() {
         });
 
         // Dodanie podsumowania
-        const finalY = (doc as any).lastAutoTable.finalY; // Pobierz pozycję końca tabeli
+        const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
         doc.setFontSize(12);
         doc.text(`Łączny czas pracy: ${totalHours}h ${totalMinutes}m`, 14, finalY + 10);
 
