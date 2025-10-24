@@ -15,13 +15,29 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
-// Definiujemy typ dla wpisu z feedu
+// Definiujemy szczegółowe typy dla `details`
+interface TimeEntryDetails {
+    status: 'clock_in' | 'clock_out' | 'job_change' | 'general_clock_in' | 'general_clock_out';
+    task_name: string | null;
+    project_name: string | null;
+}
+
+interface AuditDetails {
+    change_reason: string | null;
+    target_user_id: string;
+    target_user_name: string;
+    new_values: {
+        status?: 'DELETED';
+    } | null;
+}
+
+// Definiujemy główny typ wpisu
 interface ActivityEvent {
-    event_type: 'time_entry' | 'audit' | 'user_created'; // Dodamy 'user_created' w przyszłości
+    event_type: 'time_entry' | 'audit' | 'user_created';
     event_timestamp: string;
     user_id: string;
     user_name: string;
-    details: any; // Typ JSONB
+    details: TimeEntryDetails | AuditDetails | Record<string, unknown>; // Używamy unii typów
 }
 
 // Komponent pomocniczy do renderowania różnych typów zdarzeń
@@ -33,31 +49,35 @@ function ActivityEventItem({ event }: { event: ActivityEvent }) {
     let description = '';
 
     if (event.event_type === 'time_entry') {
-        if (event.details.status === 'clock_in' || event.details.status === 'job_change') {
+        // ✅ Mówimy TS, że tutaj `details` to `TimeEntryDetails`
+        const details = event.details as TimeEntryDetails;
+        if (details.status === 'clock_in' || details.status === 'job_change' || details.status === 'general_clock_in') {
             Icon = LogIn;
             title = `${event.user_name} rozpoczął pracę`;
-            description = `Zlecenie: ${event.details.task_name || 'Ogólne'} (${event.details.project_name || '-'})`;
+            description = `Zlecenie: ${details.task_name || 'Ogólne'} (${details.project_name || '-'})`;
         } else {
             Icon = LogOut;
             title = `${event.user_name} zakończył pracę`;
-            description = `Zlecenie: ${event.details.task_name || 'Ogólne'} (${event.details.project_name || '-'})`;
+            description = `Zlecenie: ${details.task_name || 'Ogólne'} (${details.project_name || '-'})`;
         }
     } else if (event.event_type === 'audit') {
-        if (event.details.new_values?.status === 'DELETED') {
+        // ✅ Mówimy TS, że tutaj `details` to `AuditDetails`
+        const details = event.details as AuditDetails;
+        if (details.new_values?.status === 'DELETED') {
             Icon = Trash2;
             title = `${event.user_name} usunął wpis`;
-            description = `Powód: ${event.details.change_reason || '-'}`;
+            description = `Powód: ${details.change_reason || '-'}`;
         } else {
             Icon = Edit;
             title = `${event.user_name} edytował wpis`;
-            description = `Powód: ${event.details.change_reason || '-'}`;
+            description = `Powód: ${details.change_reason || '-'}`;
         }
     } else {
         Icon = UserPlus; // Na przyszłość
         title = `Zdarzenie: ${event.event_type}`;
     }
 
-    const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('');
+    const getInitials = (name: string) => name ? name.split(' ').map(n => n[0]).join('') : '?';
 
     return (
         <li className="flex items-center gap-4">
