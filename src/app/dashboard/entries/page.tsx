@@ -99,42 +99,78 @@ export default function TimeEntriesPage() {
         link.click();
     };
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
+        // 1. Funkcja musi być teraz asynchroniczna
         const doc = new jsPDF();
 
-        // Tytuł
-        doc.text("Raport Ewidencji Czasu Pracy", 14, 20);
-        doc.setFontSize(10);
-        doc.text(`Filtry: ${date?.from ? format(date.from, 'dd.MM.yyyy') : ''} - ${date?.to ? format(date.to, 'dd.MM.yyyy') : ''}`, 14, 25);
+        try {
+            // 2. Pobierz plik czcionki z folderu /public
+            const fontResponse = await fetch('/fonts/Roboto-Regular.ttf');
+            if (!fontResponse.ok) {
+                throw new Error('Nie udało się załadować czcionki');
+            }
+            const fontBlob = await fontResponse.blob();
 
-        // Definicja tabeli
-        const tableColumn = ["Pracownik", "Projekt / Zlecenie", "Start", "Koniec", "Czas Trwania"];
-        const tableRows: (string | number)[][] = [];
+            // 3. Przeczytaj czcionkę jako Base64
+            const reader = new FileReader();
+            reader.readAsDataURL(fontBlob);
 
-        entries.forEach(entry => {
-            const row = [
-                `${entry.user.first_name} ${entry.user.last_name}`,
-                `${entry.project?.name || '-'} / ${entry.task?.name || 'Ogólny'}`,
-                new Date(entry.start_time).toLocaleString('pl-PL'),
-                entry.end_time ? new Date(entry.end_time).toLocaleString('pl-PL') : '-',
-                formatDuration(entry.start_time, entry.end_time)
-            ];
-            tableRows.push(row);
-        });
+            // Używamy Promise, aby poczekać na wczytanie pliku
+            await new Promise<void>((resolve) => {
+                reader.onloadend = () => {
+                    // Otrzymujemy string base64
+                    const fontBase64 = (reader.result as string).split(',')[1];
 
-        // Dodanie tabeli
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 35,
-        });
+                    // 4. Zarejestruj czcionkę w jsPDF
+                    doc.addFileToVFS('Roboto-Regular.ttf', fontBase64);
+                    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+                    doc.setFont('Roboto'); // Ustaw ją jako domyślną
 
-        // Dodanie podsumowania
-        const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
-        doc.setFontSize(12);
-        doc.text(`Łączny czas pracy: ${totalHours}h ${totalMinutes}m`, 14, finalY + 10);
+                    resolve();
+                };
+            });
 
-        doc.save('raport_czasu_pracy.pdf');
+            // 5. Cała reszta logiki generowania PDF (teraz z poprawną czcionką)
+            doc.text("Raport Ewidencji Czasu Pracy", 14, 20);
+            doc.setFontSize(10);
+            doc.text(`Filtry: ${date?.from ? format(date.from, 'dd.MM.yyyy') : ''} - ${date?.to ? format(date.to, 'dd.MM.yyyy') : ''}`, 14, 25);
+
+            const tableColumn = ["Pracownik", "Projekt / Zlecenie", "Start", "Koniec", "Czas Trwania"];
+            const tableRows: (string | number)[][] = [];
+
+            entries.forEach(entry => {
+                const row = [
+                    `${entry.user.first_name} ${entry.user.last_name}`,
+                    `${entry.project?.name || '-'} / ${entry.task?.name || 'Ogólny'}`,
+                    new Date(entry.start_time).toLocaleString('pl-PL'),
+                    entry.end_time ? new Date(entry.end_time).toLocaleString('pl-PL') : '-',
+                    formatDuration(entry.start_time, entry.end_time)
+                ];
+                tableRows.push(row);
+            });
+
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 35,
+                styles: {
+                    font: 'Roboto', // Używamy naszej nowej czcionki
+                },
+            });
+
+            const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+            doc.setFont('Roboto');
+            doc.setFontSize(12);
+
+            // Ta linia teraz zadziała poprawnie
+            doc.text(`Łączny czas pracy: ${totalHours}h ${totalMinutes}m`, 14, finalY + 10);
+
+            doc.save('raport_czasu_pracy.pdf');
+
+        } catch (error) {
+            console.error("Błąd podczas generowania PDF:", error);
+            toast.error('Błąd', { description: 'Nie udało się wygenerować PDF. Sprawdź, czy plik czcionki jest dostępny.' });
+        }
     };
 
     const fetchTimeEntries = useCallback(async () => {
