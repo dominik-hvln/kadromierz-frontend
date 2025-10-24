@@ -1,54 +1,211 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Capacitor } from '@capacitor/core';
+import { toast } from 'sonner';
+import { Geolocation } from '@capacitor/geolocation';
+import { api } from '@/lib/api';
+import { Network } from '@capacitor/network';
+import { Preferences } from '@capacitor/preferences';
 import { Scanner as WebScanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
 import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capacitor/barcode-scanner';
+import { AxiosError } from "axios";
 import { TimeEntryCard } from './TimeEntryCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Network } from '@capacitor/network';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
 
-// Importujemy nasz nowy store
-import { useEmployeeStore } from '@/store/employee.store';
+// Definicje typów
+interface Task {
+    id: string;
+    name: string;
+    project: { name: string };
+}
+interface TimeEntry {
+    id: string;
+    start_time: string;
+    task: { name: string } | null;
+    task_id: string | null;
+}
+interface OfflineScan {
+    qrCodeValue: string;
+    location: { latitude: number; longitude: number } | null;
+    timestamp: string;
+    id: string;
+}
+
+const useIsSyncing = () => {
+    const isSyncingRef = useRef(false);
+    return isSyncingRef;
+};
 
 export function EmployeeDashboard() {
-    // Odczytujemy stan i akcje ze store
-    const {
-        activeEntry,
-        availableTasks,
-        isLoading,
-        fetchData,
-        handleScan,
-        handleSwitchTask,
-        syncOfflineScans
-    } = useEmployeeStore();
+    const [isNative, setIsNative] = useState(false);
+    const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
+    const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const isSyncingRef = useIsSyncing();
 
-    const isNative = Capacitor.isNativePlatform();
+    // Funkcja do pobierania danych opakowana w useCallback
+    const fetchData = useCallback(async () => {
+        console.log('[fetchData] Start');
+        setIsLoading(true);
+        try {
+            const [entryRes, tasksRes] = await Promise.all([
+                api.get('/time-entries/my-active'),
+                api.get('/tasks/my'), // Używamy endpointu /my
+            ]);
+            console.log('[fetchData] Otrzymano activeEntry:', entryRes.data);
+            setActiveEntry(entryRes.data || null);
+            setAvailableTasks(tasksRes.data);
+        } catch (error: unknown) {
+            console.error('[fetchData] Błąd:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Nie udało się pobrać statusu.';
+            toast.error('Błąd', { description: errorMessage });
+            setActiveEntry(null);
+        } finally {
+            setIsLoading(false);
+            console.log('[fetchData] Koniec');
+        }
+    }, []);
 
-    // Główny useEffect do inicjalizacji
+    // Logika Offline opakowana w useCallback
+    const syncOfflineScans = useCallback(async (showToast = true) => {
+        if (isSyncingRef.current) { console.log('[syncOffline] Już trwa, pomijam.'); return; }
+        isSyncingRef.current = true;
+        console.log('[syncOffline] Start');
+        try {
+            const { keys } = await Preferences.keys();
+            const offlineScanKeys = keys.filter(key => key.startsWith('offline_scan_'));
+            if (offlineScanKeys.length === 0) {
+                console.log('[syncOffline] Brak skanów.');
+                return;
+            }
+            if (showToast) toast.info(`Synchronizuję ${offlineScanKeys.length} wpisów offline...`);
+            let syncOk = true;
+            for (const key of offlineScanKeys) {
+                const { value } = await Preferences.get({ key });
+                if (value) {
+                    try {
+                        const scanData: OfflineScan = JSON.parse(value);
+                        await api.post('/time-entries/scan', scanData);
+                        await Preferences.remove({ key });
+                    } catch (error) {
+                        console.error(`[syncOffline] Błąd synchronizacji skanu ${key}:`, error);
+                        syncOk = false;
+                        break;
+                    }
+                }
+            }
+            if (syncOk) {
+                const { keys: remainingKeys } = await Preferences.keys();
+                if (remainingKeys.filter(k => k.startsWith('offline_scan_')).length === 0) {
+                    if (showToast) toast.success('Dane offline zostały zsynchronizowane!');
+                    console.log('[syncOffline] Sukces, odświeżam dane...');
+                    fetchData(); // Odśwież widok po udanej synchronizacji
+                }
+            } else {
+                console.log('[syncOffline] Synchronizacja przerwana.');
+            }
+        } finally {
+            isSyncingRef.current = false;
+            console.log('[syncOffline] Koniec');
+        }
+    }, [fetchData, isSyncingRef]);
+
     useEffect(() => {
+        console.log('[useEffect] Montowanie komponentu.');
+        setIsNative(Capacitor.isNativePlatform());
         fetchData();
-        syncOfflineScans(false); // Uruchom synchronizację w tle
-
+        syncOfflineScans(false);
         const networkListenerPromise = Network.addListener('networkStatusChange', (status) => {
+            console.log('[useEffect] Zmiana sieci:', status);
             if (status.connected) syncOfflineScans();
         });
         return () => {
+            console.log('[useEffect] Odmontowywanie komponentu.');
             networkListenerPromise.then(listener => listener.remove());
         };
     }, [fetchData, syncOfflineScans]);
 
 
-    // Uproszczona funkcja skanowania (tylko wywołuje store)
+    const handleScanResult = async (content: string) => {
+        console.log(`[handleScanResult] Start. Kod: ${content}`);
+        let location = null;
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await Geolocation.requestPermissions();
+                const coordinates = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+                location = { latitude: coordinates.coords.latitude, longitude: coordinates.coords.longitude };
+            }
+        } catch (error) { console.warn('[handleScanResult] Błąd GPS:', error); }
+
+        const scanData: OfflineScan = { qrCodeValue: content, location, timestamp: new Date().toISOString(), id: `offline_scan_${Date.now()}` };
+
+        try {
+            console.log('[handleScanResult] Wysyłam do API...');
+            const response = await api.post('/time-entries/scan', scanData);
+            console.log('[handleScanResult] Surowa odpowiedź API:', response);
+
+            if (!response || !response.data || typeof response.data.status !== 'string') {
+                console.error('[handleScanResult] BŁĄD: Nieprawidłowa odpowiedź API!');
+                toast.error('Błąd krytyczny: Nieprawidłowa odpowiedź serwera.');
+                return;
+            }
+
+            const status = response.data.status.trim();
+            const entryData = response.data.entry || response.data.newEntry ? { ...(response.data.entry || response.data.newEntry) } : null;
+            console.log(`[handleScanResult] Otrzymany status: "${status}"`);
+            console.log('[handleScanResult] Otrzymane entryData:', entryData);
+
+            // --- POPRAWIONA LOGIKA ---
+            if (status === 'clock_in') {
+                console.log('[handleScanResult] -> DECYZJA: START');
+                toast.success('Rozpoczęto pracę!');
+                setActiveEntry(entryData); // Ustawiamy stan na nowy wpis
+            } else if (status === 'clock_out') {
+                console.log('[handleScanResult] -> DECYZJA: STOP');
+                toast.info('Zakończono pracę!');
+                setActiveEntry(null); // Czyścimy stan
+            } else {
+                console.log(`[handleScanResult] -> DECYZJA: INNY (${status})`);
+                toast.error(`Nieznany status operacji: ${status}`);
+                // CELOWO NIE WYWOŁUJEMY fetchData() - polegamy na setActiveEntry
+            }
+
+        } catch (error: unknown) {
+            console.error('[handleScanResult] --- BŁĄD API ---');
+            const axiosError = error as AxiosError;
+            console.error('[handleScanResult] Szczegóły błędu Axios:', JSON.stringify(axiosError.toJSON ? axiosError.toJSON() : error));
+            const networkStatus = await Network.getStatus();
+
+            if (!networkStatus.connected || !axiosError.response) {
+                console.log('[handleScanResult] Zapisuję offline...');
+                await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
+                toast.info('Brak połączenia. Zapisano dane offline.');
+                const temporaryEntry: TimeEntry = {
+                    id: scanData.id, start_time: scanData.timestamp, task: null, task_id: null
+                };
+                // Ustaw stan optymistycznie
+                if(activeEntry) {
+                    setActiveEntry(null);
+                } else {
+                    setActiveEntry(temporaryEntry);
+                }
+            } else {
+                console.log('[handleScanResult] Błąd odpowiedzi serwera.');
+                const errorMessage = (axiosError.response?.data as { message: string })?.message;
+                toast.error('Błąd serwera', { description: errorMessage || 'Nie udało się zarejestrować czasu.' });
+            }
+        }
+    };
+
     const startNativeScan = async () => {
         console.log('[startNativeScan] Start');
         try {
             const result = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
             if (result.ScanResult) {
-                handleScan(result.ScanResult); // Wywołaj akcję ze store
+                handleScanResult(result.ScanResult);
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -58,9 +215,8 @@ export function EmployeeDashboard() {
         }
     };
 
-    // Uproszczona funkcja skanowania web (tylko wywołuje store)
     const handleWebScanSuccess = (result: IDetectedBarcode[]) => {
-        if (result && result.length > 0) handleScan(result[0].rawValue);
+        if (result && result.length > 0) handleScanResult(result[0].rawValue);
     };
 
     const handleWebScanError = (error: unknown) => {
@@ -69,7 +225,28 @@ export function EmployeeDashboard() {
         }
     };
 
-    // --- Renderowanie ---
+    const handleSwitchTask = async (taskId: string) => {
+        console.log(`[handleSwitchTask] Start dla taska: ${taskId}`);
+        let location = null;
+        try {
+            if (Capacitor.isNativePlatform()) {
+                const coordinates = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+                location = { latitude: coordinates.coords.latitude, longitude: coordinates.coords.longitude };
+            }
+        } catch (e: unknown) { console.warn("[handleSwitchTask] Błąd GPS:", e); }
+
+        try {
+            const response = await api.post('/time-entries/switch-task', { taskId, location });
+            const newEntry = response.data.newEntry ? { ...response.data.newEntry } : null;
+            setActiveEntry(newEntry); // Ustawiamy stan bezpośrednio
+            toast.success('Rozpoczęto nowe zlecenie!');
+        } catch (error: unknown) {
+            console.error('[handleSwitchTask] Błąd API:', error);
+            const axiosError = error as AxiosError;
+            const errorMessage = (axiosError.response?.data as { message: string })?.message;
+            toast.error('Błąd', { description: errorMessage || 'Nie udało się rozpocząć zlecenia.' });
+        }
+    };
 
     if (isLoading) {
         return <div className="p-4 text-center">Ładowanie statusu...</div>;
@@ -83,7 +260,7 @@ export function EmployeeDashboard() {
                 {isNative ? ( <Button onClick={startNativeScan} size="lg" className="h-16 text-xl w-full max-w-xs">Skanuj Kod QR</Button> ) : (
                     <div className="w-full max-w-sm border-2 border-dashed rounded-lg p-2">
                         <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} />
-                        <p className="text-sm text-center text-muted-foreground mt-2">Użyj kamery, aby zeskanować kod QR</p>
+                        <p className="text-sm text-center text-muted-foreground mt-2">Użyj kamery...</p>
                     </div>
                 )}
             </div>
