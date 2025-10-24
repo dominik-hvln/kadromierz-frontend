@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -14,21 +13,18 @@ export default function RootLayout({
 }) {
     return (
         <html lang="pl">
-        {/* Dodajemy 'relative', aby element glow pozycjonował się względem body */}
-        <body className="relative">
-        {/* Główna treść aplikacji */}
-        <div className="relative z-10"> {/* Umieszczamy treść na warstwie z-index: 10 */}
-            {children}
-        </div>
+        <body className="relative"> {/* Ustawia kontekst dla z-index */}
 
-        <Toaster richColors />
+        {/* WARSTWA 1: TŁO APLIKACJI */}
+        {/* Ten div ma nasze tło i jest na samym spodzie (-z-20) */}
+        <div className="fixed inset-0 -z-20 bg-background" />
 
-        {/* ✅ ELEMENT "GLOW" */}
+        {/* WARSTWA 2: EFEKT "GLOW" */}
+        {/* Ten div jest nad tłem, ale pod treścią (-z-10) */}
         <div
-            aria-hidden="true" // Ukryte przed czytnikami ekranu
-            className="pointer-events-none fixed inset-0 -z-10" // Umieszczamy go z tyłu
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 -z-10"
         >
-            {/* Definicja gradientu */}
             <div
                 className="absolute bottom-[-30vh] left-0 right-0 h-[60vh] w-full"
                 style={{
@@ -39,10 +35,16 @@ export default function RootLayout({
                 transparent 70%
               )`,
                     filter: 'blur(120px)',
-                    opacity: 0.7, // Możemy kontrolować moc blasku
+                    opacity: 0.7,
                 }}
             />
         </div>
+
+        {/* WARSTWA 3: TREŚĆ APLIKACJI */}
+        {/* {children} jest na domyślnym z-index: 0, więc jest na wierzchu */}
+        {children}
+
+        <Toaster richColors />
         </body>
         </html>
     );
