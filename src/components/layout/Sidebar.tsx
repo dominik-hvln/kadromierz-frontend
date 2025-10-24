@@ -76,8 +76,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
     // Wersja desktopowa (stała)
     return (
         <aside className={cn(
-            "hidden md:flex h-full w-72 flex-col border-r",
-            "bg-background" // Upewniamy się, że ma tło strony
+            "hidden md:flex h-full w-72 flex-col",
         )}>
             <div className="flex h-[72px] items-center px-8">
                 <Link href="/dashboard" className="flex items-center gap-2 font-semibold">

@@ -111,16 +111,45 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+        position: relative; /* Potrzebne, aby umieścić pseudo-element */
+        overflow-x: hidden; /* Zapobiega poziomemu przewijaniu przez "glow" */
+    }
+
+    /* ✅ POCZĄTEK NOWEGO KODU DLA "GLOW" */
+    body::after {
+        content: '';
+        position: fixed; /* Stała pozycja, aby "glow" było zawsze na dole widoku */
+        bottom: -30vh; /* Zaczynamy częściowo pod ekranem */
+        left: 0;
+        right: 0;
+        height: 60vh; /* Wysokość naszego blasku */
+        z-index: -1;  /* Umieszczamy go ZA całą treścią */
+
+        /* Definicja gradientu: delikatny niebieski przechodzący w zielony */
+        background-image: radial-gradient(
+                ellipse at 50% 100%,
+                    /* Używamy kolorów oklch, aby pasowały do Twojego designu */
+                oklch(0.85 0.05 240 / 0.25), /* Delikatny niebieski, 25% przezroczystości */
+                oklch(0.9 0.1 160 / 0.15),  /* Delikatny zielony, 15% przezroczystości */
+                transparent 70%             /* Płynne przejście do przezroczystości */
+        );
+
+        /* Bardzo mocne rozmycie tworzy efekt "glow" */
+        filter: blur(120px);
+
+        /* Mała optymalizacja, aby animacja była płynniejsza (jeśli dodamy) */
+        transform: translateZ(0);
+    }
+    /* ✅ KONIEC NOWEGO KODU */
 
     .glassmorphism-box {
         @apply rounded-xl border border-white/20 bg-white/70 shadow-lg;
-        /* Efekt matowego szkła */
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
     }
