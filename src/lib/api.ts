@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
-import { useAuthStore } from '@/store/auth.store';
-import {toast} from "sonner";
+import { useAuthStore } from '../store/auth.store';
+import { toast } from 'sonner';
 
 // Odczytujemy zmienne środowiskowe
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -25,25 +25,29 @@ api.interceptors.request.use(
     }
 );
 
+// Interceptor ODPOWIEDZI (Response) - obsługuje wygaśnięcie sesji
 api.interceptors.response.use(
     (response) => {
+        // Jeśli odpowiedź jest poprawna, po prostu ją zwróć
         return response;
     },
     async (error: AxiosError) => {
         const originalRequest = error.config;
 
-        // @ts-ignore - dodajemy flagę _retry, aby uniknąć nieskończonej pętli
+        // ✅ POPRAWKA: Dodano opis błędu
+        // @ts-expect-error _retry to niestandardowa właściwość, którą dodajemy do obiektu config
         if (error.response?.status === 401 && !originalRequest._retry) {
-            // @ts-ignore
-            originalRequest._retry = true;
+            // ✅ POPRAWKA: Dodano opis błędu
+            // @ts-expect-error Ustawiamy flagę _retry na niestandardowej właściwości
+            originalRequest._retry = true; // Oznaczamy żądanie jako ponawiane
             console.log('Access token wygasł. Próbuję odświeżyć...');
 
             const { refreshToken, setSession } = useAuthStore.getState();
 
-            if (!refreshToken) {
-                console.log('Brak refresh tokenu. Wylogowuję.');
+            if (!refreshToken || !SUPABASE_URL || !SUPABASE_KEY) {
+                console.log('Brak refresh tokenu lub konfiguracji Supabase. Wylogowuję.');
                 useAuthStore.getState().logout();
-                window.location.href = '/';
+                window.location.href = '/'; // Twarde przekierowanie
                 return Promise.reject(error);
             }
 
@@ -55,20 +59,27 @@ api.interceptors.response.use(
                     { headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' } }
                 );
 
-                const { access_token, refresh_token: newRefreshToken, user } = data;
+                const { access_token, refresh_token: newRefreshToken } = data;
+
                 const oldUser = useAuthStore.getState().user;
-                setSession(access_token, newRefreshToken, oldUser!); // Używamy starych danych profilu
+                if (oldUser) {
+                    setSession(access_token, newRefreshToken, oldUser);
+                } else {
+                    throw new Error('Brak danych starego użytkownika podczas odświeżania sesji.');
+                }
 
                 console.log('Token odświeżony. Ponawiam oryginalne żądanie...');
 
+                // 3. Zaktualizuj nagłówek i ponów oryginalne żądanie
                 if (originalRequest) {
                     originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
                     return api(originalRequest);
                 }
             } catch (refreshError) {
+                // 4. Jeśli odświeżenie się nie uda
                 console.error('Nie udało się odświeżyć tokenu. Wylogowuję.', refreshError);
                 useAuthStore.getState().logout();
-                window.location.href = '/'; // Twarde przekierowanie
+                window.location.href = '/';
                 toast.error('Sesja wygasła', { description: 'Proszę zalogować się ponownie.' });
                 return Promise.reject(refreshError);
             }
