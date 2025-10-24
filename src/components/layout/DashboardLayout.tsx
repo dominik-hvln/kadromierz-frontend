@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
-import { Toaster } from '@/components/ui/sonner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isHydrating } = useAuthStore();
@@ -19,17 +18,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, [isAuthenticated, isHydrating, router]);
 
     if (isHydrating || !isAuthenticated) {
-        return <div className="flex h-screen items-center justify-center">Ładowanie...</div>;
+        return (
+            // Używamy już nowego tła --background
+            <div className="flex h-screen items-center justify-center">
+                Ładowanie...
+            </div>
+        );
     }
 
     // Jeśli zalogowany, pokaż layout
     return (
-        <div className="flex h-screen bg-gray-100">
+        // Główny kontener ma teraz tło z globals.css
+        <div className="flex h-screen">
             <Sidebar />
             <div className="flex-1 flex flex-col">
                 <Header />
-                <main className="flex-1 p-6 overflow-y-auto">{children}</main>
-                <Toaster richColors /> {/* Toaster specyficzny dla dashboardu */}
+                {/* Dodajemy padding i overflow do głównej treści */}
+                <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+                    {children}
+                </main>
             </div>
         </div>
     );
