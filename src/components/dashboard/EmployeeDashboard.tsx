@@ -10,7 +10,7 @@ import { Network } from '@capacitor/network';
 import { Preferences } from '@capacitor/preferences';
 import { Scanner as WebScanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
 import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capacitor/barcode-scanner';
-import { AxiosError } from "axios";
+import type { AxiosError } from 'axios';
 import { TimeEntryCard } from './TimeEntryCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -26,8 +26,13 @@ interface TimeEntry {
     task: { name: string } | null;
     task_id: string | null;
 }
+interface OfflineScan {
+    qrCodeValue: string;
+    location: { latitude: number; longitude: number } | null;
+    timestamp: string;
+    id: string; // klucz w Preferences przy trybie offline
+}
 
-// --- Normalizacja kształtu wpisu z API ---
 // --- Normalizacja kształtu wpisu z API (bez `any`) ---
 // Dopuszczamy różne kształty nazw pól z backendu i mapujemy je na TimeEntry
 type RawEntry = {
@@ -74,17 +79,7 @@ const normalizeEntry = (e: unknown): TimeEntry | null => {
     return { id, start_time, task_id, task } as TimeEntry;
 };
 
-interface OfflineScan {
-    qrCodeValue: string;
-    location: { latitude: number; longitude: number } | null;
-    timestamp: string;
-    id: string;
-}
-
-const useIsSyncing = () => {
-    const isSyncingRef = useRef(false);
-    return isSyncingRef;
-};
+const SCAN_COOLDOWN_MS = 1500; // ochrona przed dublami
 
 export function EmployeeDashboard() {
     const [isNative, setIsNative] = useState(false);
@@ -92,12 +87,11 @@ export function EmployeeDashboard() {
     const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isScanning, setIsScanning] = useState(false); // natywny stan skanera (lock)
 
-    const isSyncingRef = useIsSyncing();
-
-    // Debounce skanów na WWW
+    // Refs do anty-dubla
     const lastScanRef = useRef<{ value: string; at: number } | null>(null);
-    const SCAN_COOLDOWN_MS = 1500;
+    const nativeScanLockRef = useRef(false); // natychmiastowy lock na iOS/Android
 
     // --- 1. POBIERANIE DANYCH ---
     const fetchData = useCallback(async () => {
@@ -107,11 +101,11 @@ export function EmployeeDashboard() {
                 api.get('/time-entries/my-active'),
                 api.get('/tasks/my'),
             ]);
-            setActiveEntry(normalizeEntry(entryRes.data) || null);
-            setAvailableTasks(tasksRes.data);
-        } catch (error: unknown) {
+            setActiveEntry(normalizeEntry(entryRes.data));
+            setAvailableTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
+        } catch (error) {
             console.error('[fetchData] Błąd:', error);
-            toast.error('Błąd', { description: 'Nie udało się pobrać statusu.' });
+            toast.error('Nie udało się pobrać statusu.');
             setActiveEntry(null);
         } finally {
             setIsLoading(false);
@@ -119,24 +113,24 @@ export function EmployeeDashboard() {
     }, []);
 
     // --- 2. SYNCHRONIZACJA OFFLINE ---
+    const isSyncingRef = useRef(false);
     const syncOfflineScans = useCallback(async (showToast = true) => {
-        if (isSyncingRef.current) { return; }
+        if (isSyncingRef.current) return;
         isSyncingRef.current = true;
         try {
             const { keys } = await Preferences.keys();
-            const offlineScanKeys = keys.filter(key => key.startsWith('offline_scan_'));
+            const offlineScanKeys = keys.filter((k) => k.startsWith('offline_scan_'));
             if (offlineScanKeys.length === 0) return;
-            if (showToast) toast.info(`Synchronizuję ${offlineScanKeys.length} wpisów...`);
-
+            if (showToast) toast.info(`Synchronizuję ${offlineScanKeys.length} wpisów…`);
             for (const key of offlineScanKeys) {
                 const { value } = await Preferences.get({ key });
                 if (!value) continue;
-                const scanData: OfflineScan = JSON.parse(value);
                 try {
+                    const scanData: OfflineScan = JSON.parse(value);
                     await api.post('/time-entries/scan', scanData);
                     await Preferences.remove({ key });
-                } catch (error) {
-                    console.warn('Nie udało się zsynchronizować wpisu', key, error);
+                } catch (e) {
+                    console.warn('Błąd synchronizacji wpisu', key, e);
                 }
             }
             if (showToast) toast.success('Synchronizacja offline zakończona.');
@@ -146,149 +140,154 @@ export function EmployeeDashboard() {
         }
     }, [fetchData]);
 
-    // --- 3. EFEKTY ---
+    // --- 3. EFFECT ---
     useEffect(() => {
         setIsNative(Capacitor.isNativePlatform());
         fetchData();
-
+        // uruchom sync po odzyskaniu sieci
         const networkListenerPromise = Network.addListener('networkStatusChange', async (status) => {
             if (status.connected) await syncOfflineScans(false);
         });
-        return () => { networkListenerPromise.then(listener => listener.remove()); };
+        return () => {
+            networkListenerPromise.then((l) => l.remove());
+        };
     }, [fetchData, syncOfflineScans]);
 
-
-    // --- 4. OBSŁUGA SKANU QR (BEZ WYŚCIGU) ---
-    const handleScanResult = async (content: string) => {
-        if (isSubmitting) return; // Blokada przed podwójnym kliknięciem
-        setIsSubmitting(true);
-
-        let location = null;
-        try {
-            if (Capacitor.isNativePlatform()) {
-                await Geolocation.requestPermissions();
-                const coordinates = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
-                location = { latitude: coordinates.coords.latitude, longitude: coordinates.coords.longitude };
-            }
-        } catch (error) { console.warn('[handleScanResult] Błąd GPS:', error); }
-
-        const scanData: OfflineScan = { qrCodeValue: content, location, timestamp: new Date().toISOString(), id: `offline_scan_${Date.now()}` };
-
-        try {
-            const response = await api.post('/time-entries/scan', scanData);
-            if (!response || !response.data || typeof response.data.status !== 'string') {
-                toast.error('Błąd krytyczny: Nieprawidłowa odpowiedź serwera.');
-                return;
-            }
-
-            const status = response.data.status.trim();
-            // Zapisujemy dane z odpowiedzi API
-            const entryData = normalizeEntry(response.data.entry);
-
-            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
-            if (status === 'clock_in') {
-                toast.success('Rozpoczęto pracę!');
-                setActiveEntry(entryData); // Ustawiamy stan na nowy wpis
-            } else if (status === 'clock_out') {
-                toast.info('Zakończono pracę!');
-                setActiveEntry(null);
-                lastScanRef.current = null; // wyczyść ostatni skan
-                // Czyścimy stan
-            } else {
-                toast.error(`Nieznany status operacji: ${status}`);
-            }
-
-        } catch (error: unknown) {
-            const axiosError = error as AxiosError<unknown, unknown>;
-            const networkStatus = await Network.getStatus();
-            if (!networkStatus.connected || !axiosError.response) {
-                await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
-                toast.info('Brak połączenia. Zapisano dane offline.');
-                if(activeEntry) {
-                    setActiveEntry(null);
-                } else {
-                    setActiveEntry({ id: scanData.id, start_time: scanData.timestamp, task: null, task_id: null });
-                }
-            } else {
-                const errorMessage = (axiosError.response?.data as { message: string })?.message;
-                toast.error('Błąd serwera', { description: errorMessage || 'Nie udało się zarejestrować czasu.' });
-            }
-        } finally {
-            setTimeout(() => setIsSubmitting(false), 800); // krótki cooldown przed kolejnym skanem
-        }
-    };
-
-    // --- 5. OBSŁUGA SKANERA (WWW / NATIVE) ---
-    const startNativeScan = async () => {
-        if (isSubmitting) return; // Zapobiegaj skanowaniu, jeśli poprzednie jest przetwarzane
-        try {
-            const result = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
-            if (result.ScanResult) handleScanResult(result.ScanResult);
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (!errorMessage.toLowerCase().includes('cancelled') && !errorMessage.toLowerCase().includes('canceled')) {
-                toast.error('Błąd skanera', { description: errorMessage });
-            }
-        }
-    };
-
-    const handleWebScanSuccess = (result: IDetectedBarcode[]) => {
-        if (isSubmitting) return;
-        if (!(result && result.length > 0)) return;
-        const code = result[0].rawValue;
+    // --- 4. OBSŁUGA SKANU ---
+    const handleScanResult = async (code: string) => {
         if (!code) return;
 
+        // globalna anty-powtórka (web + native)
         const now = Date.now();
         const last = lastScanRef.current;
         if (last && last.value === code && now - last.at < SCAN_COOLDOWN_MS) {
-            return; // ignoruj powtórkę tego samego kodu
+            return;
         }
         lastScanRef.current = { value: code, at: now };
-        handleScanResult(code);
+
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
+        // spróbuj pobrać lokalizację (opcjonalna)
+        let location: { latitude: number; longitude: number } | null = null;
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await Geolocation.requestPermissions();
+                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+                location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+            }
+        } catch (e) {
+            console.warn('[GPS] Nie udało się pobrać lokalizacji:', e);
+        }
+
+        // payload zgodny z backendem
+        const scanData: OfflineScan = {
+            qrCodeValue: code,
+            location,
+            timestamp: new Date().toISOString(),
+            id: `offline_scan_${Date.now()}`,
+        };
+
+        try {
+            const response = await api.post('/time-entries/scan', scanData);
+            const status = String(response?.data?.status || '').trim();
+            const raw = response?.data?.entry ?? response?.data?.newEntry ?? null;
+            const entry = normalizeEntry(raw);
+
+            if (status === 'clock_in') {
+                setActiveEntry(entry);
+                toast.success(entry?.task ? 'Rozpoczęto pracę nad zleceniem!' : 'Dzień pracy rozpoczęty.');
+            } else if (status === 'clock_out') {
+                setActiveEntry(null);
+                toast.info('Zakończono pracę!');
+            } else {
+                toast.error('Nieznany status odpowiedzi z serwera.');
+            }
+        } catch (err) {
+            const axiosError = err as AxiosError<unknown, unknown>;
+            const net = await Network.getStatus();
+            if (!net.connected || !axiosError.response) {
+                // zapisz offline i zaktualizuj UI orientacyjnie
+                await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
+                toast.info('Brak połączenia. Zapisano wpis offline.');
+                if (!activeEntry) {
+                    setActiveEntry({ id: scanData.id, start_time: scanData.timestamp, task: null, task_id: null });
+                } else {
+                    setActiveEntry(null);
+                }
+            } else {
+                const msg = (axiosError.response.data as { message?: string } | undefined)?.message;
+                toast.error('Błąd serwera', { description: msg || 'Nie udało się zarejestrować czasu.' });
+            }
+        } finally {
+            // krótki cooldown, aby zapobiec dublom
+            setTimeout(() => setIsSubmitting(false), 800);
+        }
     };
 
+    // --- 5. SCAN: NATIVE (z twardym lockiem, by nie uruchomić 2x) ---
+    const startNativeScan = async () => {
+        if (nativeScanLockRef.current || isSubmitting) return;
+        nativeScanLockRef.current = true;
+        setIsScanning(true);
+        try {
+            const res = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
+            const code = (res as unknown as { ScanResult?: string }).ScanResult || '';
+            if (code) await handleScanResult(code);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            if (!/cancelled|canceled/i.test(msg)) toast.error('Błąd skanera', { description: msg });
+        } finally {
+            setIsScanning(false);
+            nativeScanLockRef.current = false;
+        }
+    };
+
+    // --- 6. SCAN: WEB ---
+    const handleWebScanSuccess = (result: IDetectedBarcode[]) => {
+        const code = result?.[0]?.rawValue;
+        if (code) void handleScanResult(code);
+    };
     const handleWebScanError = (error: unknown) => {
         if (error instanceof Error && !error.message.includes('No QR code found')) {
             console.error('Błąd skanera webowego:', error.message);
         }
     };
 
-    // --- 6. OBSŁUGA ZMIANY TASK-A Z LISTY (BEZ WYŚCIGU) ---
+    // --- 7. PRZEŁĄCZANIE ZLECENIA Z LISTY ---
     const handleSwitchTask = async (taskId: string) => {
         if (!taskId || isSubmitting) return;
         setIsSubmitting(true);
-
-        let location = null;
+        let location: { latitude: number; longitude: number } | null = null;
         try {
             if (Capacitor.isNativePlatform()) {
-                const coordinates = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
-                location = { latitude: coordinates.coords.latitude, longitude: coordinates.coords.longitude };
+                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+                location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
             }
-        } catch (e: unknown) { console.warn("[handleSwitchTask] Błąd GPS:", e); }
+        } catch (e) {
+            console.warn('[GPS] (switch) Nie udało się pobrać lokalizacji:', e);
+        }
 
         try {
             const response = await api.post('/time-entries/switch-task', { taskId, location });
-            const raw = response.data.entry ?? response.data.newEntry ?? null;
+            const raw = response?.data?.entry ?? response?.data?.newEntry ?? null;
             const newEntry = normalizeEntry(raw);
-
-            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
-            setActiveEntry(newEntry); // Ustawiamy stan bezpośrednio
+            setActiveEntry(newEntry);
             toast.success('Rozpoczęto nowe zlecenie!');
-        } catch (error: unknown) {
-            console.error('[handleSwitchTask] Błąd API:', error);
-            const axiosError = error as AxiosError<unknown, unknown>;
-            const errorMessage = (axiosError.response?.data as { message: string })?.message;
-            toast.error('Błąd', { description: errorMessage || 'Nie udało się rozpocząć zlecenia.' });
+        } catch (err) {
+            const axiosError = err as AxiosError<unknown, unknown>;
+            const msg = (axiosError.response?.data as { message?: string } | undefined)?.message;
+            toast.error('Nie udało się przełączyć zlecenia.', { description: msg });
         } finally {
-            setTimeout(() => setIsSubmitting(false), 800); // krótki cooldown
+            setTimeout(() => setIsSubmitting(false), 800);
         }
     };
 
-    // --- 7. RENDEROWANIE (DODANO 'disabled' DO PRZYCISKÓW) ---
+    // --- 8. RENDEROWANIE ---
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen">
-                <p className="text-muted-foreground">Ładowanie statusu...</p>
+                <p className="text-muted-foreground">Ładowanie statusu…</p>
             </div>
         );
     }
@@ -299,17 +298,12 @@ export function EmployeeDashboard() {
             <div className="flex flex-col items-center justify-center h-full p-4 pt-12 md:pt-4">
                 <h1 className="text-3xl font-bold mb-8 text-center">Gotowy do pracy?</h1>
                 {isNative ? (
-                    <Button onClick={startNativeScan} className="h-16 text-xl w-full max-w-xs" disabled={isSubmitting}>
-                        {isSubmitting ? 'Przetwarzanie...' : 'Skanuj Kod QR'}
+                    <Button onClick={startNativeScan} className="h-16 text-xl w-full max-w-xs" disabled={isSubmitting || isScanning}>
+                        {isSubmitting || isScanning ? 'Przetwarzanie…' : 'Skanuj Kod QR'}
                     </Button>
                 ) : (
                     <div className="w-full max-w-sm border-2 border-dashed rounded-lg p-2">
-                        <WebScanner
-                            onScan={handleWebScanSuccess}
-                            onError={handleWebScanError}
-                            constraints={{ facingMode: 'environment' }}
-                            allowMultiple={false}
-                        />
+                        <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} constraints={{ facingMode: 'environment' }} allowMultiple={false} />
                         <p className="text-xs text-muted-foreground mt-2">Zeskanuj kod zlecenia lub kod ogólny (np. „Biuro”).</p>
                     </div>
                 )}
@@ -322,16 +316,13 @@ export function EmployeeDashboard() {
         return (
             <div className="p-4 pt-12 md:pt-4 space-y-6">
                 <TimeEntryCard entry={activeEntry} />
-
                 <div className="space-y-2">
                     <p className="text-sm">Wybierz zlecenie, aby zacząć nad nim pracę:</p>
-                    <Select onValueChange={handleSwitchTask}>
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Wybierz zlecenie" />
-                        </SelectTrigger>
+                    <Select onValueChange={handleSwitchTask} disabled={isSubmitting}>
+                        <SelectTrigger className="w-full"><SelectValue placeholder="Wybierz zlecenie" /></SelectTrigger>
                         <SelectContent>
                             {availableTasks.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                <SelectItem key={t.id} value={t.id}>{t.name} ({t.project?.name || 'Brak proj.'})</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -339,17 +330,12 @@ export function EmployeeDashboard() {
 
                 <div>
                     <p className="text-xs text-muted-foreground mb-2">Lub zakończ dzień pracy, skanując kod ogólny:</p>
-                    <Button onClick={isNative ? startNativeScan : undefined} className="w-full" variant="secondary" disabled={isSubmitting}>
-                        {isSubmitting ? 'Przetwarzanie...' : 'Zakończ dzień (Zeskanuj QR)'}
+                    <Button onClick={isNative ? startNativeScan : undefined} className="w-full" variant="secondary" disabled={isSubmitting || isScanning}>
+                        {isSubmitting || isScanning ? 'Przetwarzanie…' : 'Zeskanuj kod ogólny'}
                     </Button>
                     {!isNative && (
                         <div className="mt-4">
-                            <WebScanner
-                                onScan={handleWebScanSuccess}
-                                onError={handleWebScanError}
-                                constraints={{ facingMode: 'environment' }}
-                                allowMultiple={false}
-                            />
+                            <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} constraints={{ facingMode: 'environment' }} allowMultiple={false} />
                         </div>
                     )}
                 </div>
@@ -361,17 +347,12 @@ export function EmployeeDashboard() {
     return (
         <div className="p-4 pt-12 md:pt-4">
             <TimeEntryCard entry={activeEntry} />
-            <Button onClick={isNative ? startNativeScan : undefined} className="w-full mt-6" variant="destructive" disabled={isSubmitting}>
-                {isSubmitting ? 'Przetwarzanie...' : 'Zakończ zlecenie (Zeskanuj QR)'}
+            <Button onClick={isNative ? startNativeScan : undefined} className="w-full mt-6" variant="destructive" disabled={isSubmitting || isScanning}>
+                {isSubmitting || isScanning ? 'Przetwarzanie…' : 'Zakończ zlecenie (Zeskanuj QR)'}
             </Button>
             {!isNative && (
                 <div className="mt-4">
-                    <WebScanner
-                        onScan={handleWebScanSuccess}
-                        onError={handleWebScanError}
-                        constraints={{ facingMode: 'environment' }}
-                        allowMultiple={false}
-                    />
+                    <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} constraints={{ facingMode: 'environment' }} allowMultiple={false} />
                 </div>
             )}
         </div>
