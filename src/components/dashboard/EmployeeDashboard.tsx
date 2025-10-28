@@ -81,7 +81,7 @@ const normalizeEntry = (e: unknown): TimeEntry | null => {
 
 const SCAN_COOLDOWN_MS = 1500; // ochrona przed dublami
 
-export function EmployeeDashboard() {
+function EmployeeDashboard() {
     const [isNative, setIsNative] = useState(false);
     const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
     const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
@@ -358,3 +358,6 @@ export function EmployeeDashboard() {
         </div>
     );
 }
+
+export default EmployeeDashboard;
+export { EmployeeDashboard };
