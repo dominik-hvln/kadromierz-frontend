@@ -7,6 +7,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { AxiosError } from 'axios';
+import {Network} from "@capacitor/network";
 
 // Definicje typów
 interface Task {
@@ -52,7 +53,7 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
         try {
             const [entryRes, tasksRes] = await Promise.all([
                 api.get('/time-entries/my-active'),
-                api.get('/tasks/my'), // Używamy endpointu /my
+                api.get('/tasks/my'),
             ]);
             set({
                 activeEntry: entryRes.data || null,
@@ -89,10 +90,8 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
                 if (value) {
                     try {
                         const scanData: OfflineScan = JSON.parse(value);
-                        console.log(`[syncOffline] Wysyłam skan: ${key}`);
                         await api.post('/time-entries/scan', scanData);
                         await Preferences.remove({ key });
-                        console.log(`[syncOffline] Usunięto skan: ${key}`);
                     } catch (error) {
                         console.error(`[syncOffline] Błąd synchronizacji skanu ${key}:`, error);
                         syncOk = false;
@@ -104,11 +103,8 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
                 const { keys: remainingKeys } = await Preferences.keys();
                 if (remainingKeys.filter(k => k.startsWith('offline_scan_')).length === 0) {
                     if (showToast) toast.success('Dane offline zostały zsynchronizowane!');
-                    console.log('[syncOffline] Sukces, odświeżam dane...');
-                    get().fetchData(); // Odśwież widok po udanej synchronizacji
+                    get().fetchData(); // Odśwież widok
                 }
-            } else {
-                console.log('[syncOffline] Synchronizacja przerwana.');
             }
         } finally {
             isSyncing = false;
@@ -116,25 +112,10 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
         }
     },
 
-    // --- AKCJA 3: OBSŁUGA SKANOWANIA (LOGIKA OPTYMISTYCZNA) ---
+    // --- AKCJA 3: OBSŁUGA SKANOWANIA (PRZEPISANA) ---
     handleScan: async (content: string) => {
-        console.log(`[Store handleScan] Start. Kod: ${content}`);
-        const currentEntry = get().activeEntry;
+        console.log(`[Store handleScan v3] Start. Kod: ${content}`);
 
-        // 1. Aktualizacja optymistyczna (natychmiastowa zmiana UI)
-        let tempEntry: TimeEntry | null = null;
-        if (currentEntry) {
-            console.log('[Store handleScan] UI: Zatrzymuję pracę (optymistycznie)');
-            toast.info('Zakończono pracę...');
-            set({ activeEntry: null }); // Natychmiast wyloguj
-        } else {
-            console.log('[Store handleScan] UI: Rozpoczynam pracę (optymistycznie)');
-            toast.info('Rozpoczęto pracę...');
-            tempEntry = { id: 'temp_scan', start_time: new Date().toISOString(), task: null, task_id: null };
-            set({ activeEntry: tempEntry });
-        }
-
-        // 2. Pobierz GPS
         let location = null;
         try {
             if (Capacitor.isNativePlatform()) {
@@ -142,63 +123,85 @@ export const useEmployeeStore = create<EmployeeState>((set, get) => ({
                 const coordinates = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
                 location = { latitude: coordinates.coords.latitude, longitude: coordinates.coords.longitude };
             }
-        } catch (error) { console.warn('[Store handleScan] Błąd GPS:', error); }
+        } catch (error) { console.warn('[Store handleScan v3] Błąd GPS:', error); }
 
         const scanData: OfflineScan = { qrCodeValue: content, location, timestamp: new Date().toISOString(), id: `offline_scan_${Date.now()}` };
 
-        // 3. Wyślij dane do API (w tle)
         try {
-            console.log('[Store handleScan] Wysyłam do API...');
+            console.log('[Store handleScan v3] Wysyłam do API...');
             const response = await api.post('/time-entries/scan', scanData);
+
+            if (!response || !response.data || typeof response.data.status !== 'string') {
+                console.error('[Store handleScan v3] BŁĄD: Nieprawidłowa odpowiedź API!');
+                toast.error('Błąd krytyczny: Nieprawidłowa odpowiedź serwera.');
+                return;
+            }
 
             const status = response.data.status.trim();
             const entryData = response.data.entry || response.data.newEntry ? { ...(response.data.entry || response.data.newEntry) } : null;
+            console.log(`[Store handleScan v3] Otrzymany status: "${status}"`);
 
             if (status === 'clock_in') {
-                set({ activeEntry: entryData }); // Potwierdź rozpoczęcie
+                toast.success('Rozpoczęto pracę!');
+                set({ activeEntry: entryData }); // Ustawiamy stan na nowy wpis
+            } else if (status === 'clock_out') {
+                toast.info('Zakończono pracę!');
+                set({ activeEntry: null }); // Czyścimy stan
             } else {
-                set({ activeEntry: null }); // Potwierdź zakończenie
+                toast.error(`Nieznany status operacji: ${status}`);
+                get().fetchData(); // Spróbuj odświeżyć
             }
-            console.log('[Store handleScan] Sukces API, stan zaktualizowany.');
 
         } catch (error: unknown) {
-            console.error('[Store handleScan] Błąd API, zapisuję offline.', error);
-            await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
-            // Stan jest już ustawiony optymistycznie, więc UI jest poprawny
+            console.error('[Store handleScan v3] --- BŁĄD API ---');
+            const axiosError = error as AxiosError;
+            const networkStatus = await Network.getStatus();
+
+            if (!networkStatus.connected || !axiosError.response) {
+                console.log('[Store handleScan v3] Zapisuję offline...');
+                await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
+                toast.info('Brak połączenia. Zapisano dane offline.');
+
+                // Optymistyczna aktualizacja UI
+                const currentState = get().activeEntry;
+                if(currentState) {
+                    set({ activeEntry: null });
+                } else {
+                    const temporaryEntry: TimeEntry = {
+                        id: scanData.id, start_time: scanData.timestamp, task: null, task_id: null
+                    };
+                    set({ activeEntry: temporaryEntry });
+                }
+            } else {
+                console.log('[Store handleScan v3] Błąd odpowiedzi serwera.');
+                const errorMessage = (axiosError.response?.data as { message: string })?.message;
+                toast.error('Błąd serwera', { description: errorMessage || 'Nie udało się zarejestrować czasu.' });
+            }
         }
     },
 
-    // --- AKCJA 4: PRZEŁĄCZANIE ZADAŃ (LOGIKA OPTYMISTYCZNA) ---
+    // --- AKCJA 4: PRZEŁĄCZANIE ZADAŃ (PRZEPISANA) ---
     handleSwitchTask: async (taskId: string) => {
-        console.log(`[Store handleSwitchTask] Start dla taska: ${taskId}`);
-
-        const tasks = get().availableTasks;
-        const switchedTask = tasks.find(t => t.id === taskId);
-        const tempEntry: TimeEntry = {
-            id: 'temp_switch',
-            start_time: new Date().toISOString(),
-            task: switchedTask ? { name: switchedTask.name } : null,
-            task_id: taskId
-        };
-        set({ activeEntry: tempEntry });
-        toast.success('Rozpoczęto nowe zlecenie!');
-
+        console.log(`[Store handleSwitchTask v3] Start dla taska: ${taskId}`);
         let location = null;
         try {
             if (Capacitor.isNativePlatform()) {
                 const coordinates = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
                 location = { latitude: coordinates.coords.latitude, longitude: coordinates.coords.longitude };
             }
-        } catch (e) { console.warn("GPS nie był dostępny przy przełączaniu taska.") }
+        } catch (e: unknown) { console.warn("[Store handleSwitchTask v3] Błąd GPS:", e); }
 
         try {
-            console.log('[Store handleSwitchTask] Wysyłam do API...');
+            console.log('[Store handleSwitchTask v3] Wysyłam do API...');
             const response = await api.post('/time-entries/switch-task', { taskId, location });
-            set({ activeEntry: response.data.newEntry ? { ...response.data.newEntry } : null });
+            const newEntry = response.data.newEntry ? { ...response.data.newEntry } : null;
+            set({ activeEntry: newEntry }); // Ustawiamy stan bezpośrednio
+            toast.success('Rozpoczęto nowe zlecenie!');
         } catch (error: unknown) {
-            console.error('[Store handleSwitchTask] Błąd API:', error);
-            toast.error('Błąd', { description: 'Nie udało się przełączyć zlecenia.' });
-            get().fetchData();
+            console.error('[Store handleSwitchTask v3] Błąd API:', error);
+            const axiosError = error as AxiosError;
+            const errorMessage = (axiosError.response?.data as { message: string })?.message;
+            toast.error('Błąd', { description: errorMessage || 'Nie udało się rozpocząć zlecenia.' });
         }
     },
 }));
