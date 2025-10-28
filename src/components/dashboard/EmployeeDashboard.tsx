@@ -26,6 +26,18 @@ interface TimeEntry {
     task: { name: string } | null;
     task_id: string | null;
 }
+
+// --- Normalizacja kształtu wpisu z API ---
+const normalizeEntry = (e: any | null | undefined): TimeEntry | null => {
+    if (!e) return null;
+    return {
+        id: e.id,
+        start_time: e.start_time ?? e.startTime,
+        task_id: e.task_id ?? e.taskId ?? e.task?.id ?? null,
+        task: e.task ?? (e.taskName ? { name: e.taskName } : null),
+    } as TimeEntry;
+};
+
 interface OfflineScan {
     qrCodeValue: string;
     location: { latitude: number; longitude: number } | null;
@@ -44,35 +56,33 @@ export function EmployeeDashboard() {
     const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
     const isSyncingRef = useIsSyncing();
 
-    // --- NOWA FUNKCJA DO ODŚWIEŻANIA STANU ---
-    const refreshActiveEntry = useCallback(async () => {
-        try {
-            const entryRes = await api.get('/time-entries/my-active');
-            setActiveEntry(entryRes.data || null);
-        } catch (error) {
-            console.error('[refreshActiveEntry] Błąd:', error);
-            toast.error('Błąd', { description: 'Nie udało się odświeżyć statusu.' });
-        }
-    }, []);
+    // Debounce skanów na WWW
+    const lastScanRef = useRef<{ value: string; at: number } | null>(null);
+    const SCAN_COOLDOWN_MS = 1500;
 
-    // --- 1. POBIERANIE DANYCH (uproszczone) ---
+    // --- 1. POBIERANIE DANYCH ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            await Promise.all([
-                refreshActiveEntry(),
-                api.get('/tasks/my').then(tasksRes => setAvailableTasks(tasksRes.data)),
+            const [entryRes, tasksRes] = await Promise.all([
+                api.get('/time-entries/my-active'),
+                api.get('/tasks/my'),
             ]);
+            setActiveEntry(normalizeEntry(entryRes.data) || null);
+            setAvailableTasks(tasksRes.data);
         } catch (error: unknown) {
             console.error('[fetchData] Błąd:', error);
+            toast.error('Błąd', { description: 'Nie udało się pobrać statusu.' });
+            setActiveEntry(null);
         } finally {
             setIsLoading(false);
         }
-    }, [refreshActiveEntry]);
+    }, []);
 
-    // --- 2. SYNCHRONIZACJA OFFLINE (zaktualizowana) ---
+    // --- 2. SYNCHRONIZACJA OFFLINE ---
     const syncOfflineScans = useCallback(async (showToast = true) => {
         if (isSyncingRef.current) { return; }
         isSyncingRef.current = true;
@@ -84,43 +94,37 @@ export function EmployeeDashboard() {
 
             for (const key of offlineScanKeys) {
                 const { value } = await Preferences.get({ key });
-                if (value) {
-                    try {
-                        const scanData: OfflineScan = JSON.parse(value);
-                        await api.post('/time-entries/scan', scanData);
-                        await Preferences.remove({ key });
-                    } catch (error) {
-                        console.error(`Błąd synchronizacji skanu ${key}:`, error);
-                        toast.error('Błąd synchronizacji', { description: 'Jeden z wpisów offline nie mógł zostać zapisany.' });
-                        break;
-                    }
+                if (!value) continue;
+                const scanData: OfflineScan = JSON.parse(value);
+                try {
+                    await api.post('/time-entries/scan', scanData);
+                    await Preferences.remove({ key });
+                } catch (error) {
+                    console.warn('Nie udało się zsynchronizować wpisu', key, error);
                 }
             }
-            const { keys: remainingKeys } = await Preferences.keys();
-            if (remainingKeys.filter(k => k.startsWith('offline_scan_')).length === 0) {
-                if (showToast) toast.success('Dane offline zostały zsynchronizowane!');
-            }
-            await refreshActiveEntry(); // Zawsze odświeżaj po synchronizacji
+            if (showToast) toast.success('Synchronizacja offline zakończona.');
+            await fetchData();
         } finally {
             isSyncingRef.current = false;
         }
-    }, [refreshActiveEntry, isSyncingRef]);
+    }, [fetchData]);
 
-    // --- 3. GŁÓWNY useEffect ---
+    // --- 3. EFEKTY ---
     useEffect(() => {
         setIsNative(Capacitor.isNativePlatform());
         fetchData();
-        syncOfflineScans(false);
-        const networkListenerPromise = Network.addListener('networkStatusChange', (status) => {
-            if (status.connected) syncOfflineScans();
+
+        const networkListenerPromise = Network.addListener('networkStatusChange', async (status) => {
+            if (status.connected) await syncOfflineScans(false);
         });
         return () => { networkListenerPromise.then(listener => listener.remove()); };
     }, [fetchData, syncOfflineScans]);
 
 
-    // --- 4. OBSŁUGA SKANU QR (zmieniona) ---
+    // --- 4. OBSŁUGA SKANU QR (BEZ WYŚCIGU) ---
     const handleScanResult = async (content: string) => {
-        if (isSubmitting) return;
+        if (isSubmitting) return; // Blokada przed podwójnym kliknięciem
         setIsSubmitting(true);
 
         let location = null;
@@ -142,15 +146,21 @@ export function EmployeeDashboard() {
             }
 
             const status = response.data.status.trim();
+            // Zapisujemy dane z odpowiedzi API
+            const entryData = normalizeEntry(response.data.entry);
+
+            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
             if (status === 'clock_in') {
                 toast.success('Rozpoczęto pracę!');
+                setActiveEntry(entryData); // Ustawiamy stan na nowy wpis
             } else if (status === 'clock_out') {
                 toast.info('Zakończono pracę!');
+                setActiveEntry(null);
+                lastScanRef.current = null; // wyczyść ostatni skan
+                // Czyścimy stan
             } else {
                 toast.error(`Nieznany status operacji: ${status}`);
             }
-
-            await refreshActiveEntry(); // Zawsze pobieraj aktualny stan z serwera
 
         } catch (error: unknown) {
             const axiosError = error as AxiosError;
@@ -158,7 +168,6 @@ export function EmployeeDashboard() {
             if (!networkStatus.connected || !axiosError.response) {
                 await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
                 toast.info('Brak połączenia. Zapisano dane offline.');
-                // Optimistyczna aktualizacja UI w trybie offline
                 if(activeEntry) {
                     setActiveEntry(null);
                 } else {
@@ -169,13 +178,13 @@ export function EmployeeDashboard() {
                 toast.error('Błąd serwera', { description: errorMessage || 'Nie udało się zarejestrować czasu.' });
             }
         } finally {
-            setIsSubmitting(false);
+            setTimeout(() => setIsSubmitting(false), 800); // krótki cooldown przed kolejnym skanem
         }
     };
 
-    // --- 5. OBSŁUGA SKANERA (bez zmian) ---
+    // --- 5. OBSŁUGA SKANERA (WWW / NATIVE) ---
     const startNativeScan = async () => {
-        if (isSubmitting) return;
+        if (isSubmitting) return; // Zapobiegaj skanowaniu, jeśli poprzednie jest przetwarzane
         try {
             const result = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
             if (result.ScanResult) handleScanResult(result.ScanResult);
@@ -186,16 +195,29 @@ export function EmployeeDashboard() {
             }
         }
     };
+
     const handleWebScanSuccess = (result: IDetectedBarcode[]) => {
-        if (result && result.length > 0) handleScanResult(result[0].rawValue);
+        if (isSubmitting) return;
+        if (!(result && result.length > 0)) return;
+        const code = result[0].rawValue;
+        if (!code) return;
+
+        const now = Date.now();
+        const last = lastScanRef.current;
+        if (last && last.value === code && now - last.at < SCAN_COOLDOWN_MS) {
+            return; // ignoruj powtórkę tego samego kodu
+        }
+        lastScanRef.current = { value: code, at: now };
+        handleScanResult(code);
     };
+
     const handleWebScanError = (error: unknown) => {
         if (error instanceof Error && !error.message.includes('No QR code found')) {
             console.error('Błąd skanera webowego:', error.message);
         }
     };
 
-    // --- 6. OBSŁUGA ZMIANY TASK-A Z LISTY (zmieniona) ---
+    // --- 6. OBSŁUGA ZMIANY TASK-A Z LISTY (BEZ WYŚCIGU) ---
     const handleSwitchTask = async (taskId: string) => {
         if (!taskId || isSubmitting) return;
         setIsSubmitting(true);
@@ -209,20 +231,24 @@ export function EmployeeDashboard() {
         } catch (e: unknown) { console.warn("[handleSwitchTask] Błąd GPS:", e); }
 
         try {
-            await api.post('/time-entries/switch-task', { taskId, location });
+            const response = await api.post('/time-entries/switch-task', { taskId, location });
+            const raw = response.data.entry ?? response.data.newEntry ?? null;
+            const newEntry = normalizeEntry(raw);
+
+            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
+            setActiveEntry(newEntry); // Ustawiamy stan bezpośrednio
             toast.success('Rozpoczęto nowe zlecenie!');
-            await refreshActiveEntry(); // Zawsze pobieraj aktualny stan z serwera
         } catch (error: unknown) {
             console.error('[handleSwitchTask] Błąd API:', error);
             const axiosError = error as AxiosError;
             const errorMessage = (axiosError.response?.data as { message: string })?.message;
             toast.error('Błąd', { description: errorMessage || 'Nie udało się rozpocząć zlecenia.' });
         } finally {
-            setIsSubmitting(false);
+            setTimeout(() => setIsSubmitting(false), 800); // krótki cooldown
         }
     };
 
-    // --- 7. RENDEROWANIE (bez zmian) ---
+    // --- 7. RENDEROWANIE (DODANO 'disabled' DO PRZYCISKÓW) ---
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -231,60 +257,87 @@ export function EmployeeDashboard() {
         );
     }
 
+    // Widok: NIE W PRACY
     if (!activeEntry) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-4 pt-12 md:pt-4">
                 <h1 className="text-3xl font-bold mb-8 text-center">Gotowy do pracy?</h1>
-                {isNative ? ( <Button onClick={startNativeScan} size="lg" className="h-16 text-xl w-full max-w-xs" disabled={isSubmitting}>
-                    {isSubmitting ? 'Przetwarzanie...' : 'Skanuj Kod QR'}
-                </Button> ) : (
+                {isNative ? (
+                    <Button onClick={startNativeScan} className="h-16 text-xl w-full max-w-xs" disabled={isSubmitting}>
+                        {isSubmitting ? 'Przetwarzanie...' : 'Skanuj Kod QR'}
+                    </Button>
+                ) : (
                     <div className="w-full max-w-sm border-2 border-dashed rounded-lg p-2">
-                        <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} />
-                        <p className="text-sm text-center text-muted-foreground mt-2">Użyj kamery...</p>
+                        <WebScanner
+                            onScan={handleWebScanSuccess}
+                            onError={handleWebScanError}
+                            constraints={{ facingMode: 'environment' }}
+                            allowMultiple={false}
+                        />
+                        <p className="text-xs text-muted-foreground mt-2">Zeskanuj kod zlecenia lub kod ogólny (np. „Biuro”).</p>
                     </div>
                 )}
             </div>
         );
     }
 
+    // Widok: W PRACY — OGÓLNY (bez task_id)
     if (activeEntry && !activeEntry.task_id) {
         return (
-            <div className="p-4 pt-12 md:pt-4">
+            <div className="p-4 pt-12 md:pt-4 space-y-6">
                 <TimeEntryCard entry={activeEntry} />
-                <h2 className="text-2xl font-bold mt-6 mb-4">Wybierz zlecenie do rozpoczęcia</h2>
+
                 <div className="space-y-2">
-                    {availableTasks.length > 0 ? (
-                        <Select onValueChange={(taskId) => handleSwitchTask(taskId)} disabled={isSubmitting}>
-                            <SelectTrigger><SelectValue placeholder="Wybierz zlecenie..." /></SelectTrigger>
-                            <SelectContent>
-                                {availableTasks.map(task => (
-                                    <SelectItem key={task.id} value={task.id}>
-                                        {task.name} ({task.project?.name || 'Brak proj.'})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    ) : (
-                        <p className="text-center text-muted-foreground">Brak przypisanych zleceń.</p>
+                    <p className="text-sm">Wybierz zlecenie, aby zacząć nad nim pracę:</p>
+                    <Select onValueChange={handleSwitchTask}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Wybierz zlecenie" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {availableTasks.map((t) => (
+                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div>
+                    <p className="text-xs text-muted-foreground mb-2">Lub zakończ dzień pracy, skanując kod ogólny:</p>
+                    <Button onClick={isNative ? startNativeScan : undefined} className="w-full" variant="secondary" disabled={isSubmitting}>
+                        {isSubmitting ? 'Przetwarzanie...' : 'Zakończ dzień (Zeskanuj QR)'}
+                    </Button>
+                    {!isNative && (
+                        <div className="mt-4">
+                            <WebScanner
+                                onScan={handleWebScanSuccess}
+                                onError={handleWebScanError}
+                                constraints={{ facingMode: 'environment' }}
+                                allowMultiple={false}
+                            />
+                        </div>
                     )}
                 </div>
-                <Button onClick={startNativeScan} variant="destructive" className="w-full mt-8" disabled={isSubmitting}>
-                    {isSubmitting ? 'Przetwarzanie...' : 'Zakończ dzień pracy'}
-                </Button>
             </div>
         );
     }
 
-    if (activeEntry && activeEntry.task_id) {
-        return (
-            <div className="p-4 pt-12 md:pt-4">
-                <TimeEntryCard entry={activeEntry} />
-                <Button onClick={startNativeScan} variant="destructive" className="w-null mt-8" disabled={isSubmitting}>
-                    {isSubmitting ? 'Przetwarzanie...' : 'Zakończ zlecenie'}
-                </Button>
-            </div>
-        );
-    }
-
-    return null;
+    // Widok: W PRACY — KONKRETNE ZLECENIE (ma task_id)
+    return (
+        <div className="p-4 pt-12 md:pt-4">
+            <TimeEntryCard entry={activeEntry} />
+            <Button onClick={isNative ? startNativeScan : undefined} className="w-full mt-6" variant="destructive" disabled={isSubmitting}>
+                {isSubmitting ? 'Przetwarzanie...' : 'Zakończ zlecenie (Zeskanuj QR)'}
+            </Button>
+            {!isNative && (
+                <div className="mt-4">
+                    <WebScanner
+                        onScan={handleWebScanSuccess}
+                        onError={handleWebScanError}
+                        constraints={{ facingMode: 'environment' }}
+                        allowMultiple={false}
+                    />
+                </div>
+            )}
+        </div>
+    );
 }
