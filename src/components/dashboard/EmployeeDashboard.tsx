@@ -43,29 +43,36 @@ export function EmployeeDashboard() {
     const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
     const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false); // Blokada przycisków
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const isSyncingRef = useIsSyncing();
 
-    // --- 1. POBIERANIE DANYCH ---
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
+    // --- NOWA FUNKCJA DO ODŚWIEŻANIA STANU ---
+    const refreshActiveEntry = useCallback(async () => {
         try {
-            const [entryRes, tasksRes] = await Promise.all([
-                api.get('/time-entries/my-active'),
-                api.get('/tasks/my'),
-            ]);
+            const entryRes = await api.get('/time-entries/my-active');
             setActiveEntry(entryRes.data || null);
-            setAvailableTasks(tasksRes.data);
-        } catch (error: unknown) {
-            console.error('[fetchData] Błąd:', error);
-            toast.error('Błąd', { description: 'Nie udało się pobrać statusu.' });
-            setActiveEntry(null);
-        } finally {
-            setIsLoading(false);
+        } catch (error) {
+            console.error('[refreshActiveEntry] Błąd:', error);
+            toast.error('Błąd', { description: 'Nie udało się odświeżyć statusu.' });
         }
     }, []);
 
-    // --- 2. SYNCHRONIZACJA OFFLINE ---
+    // --- 1. POBIERANIE DANYCH (uproszczone) ---
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            await Promise.all([
+                refreshActiveEntry(),
+                api.get('/tasks/my').then(tasksRes => setAvailableTasks(tasksRes.data)),
+            ]);
+        } catch (error: unknown) {
+            console.error('[fetchData] Błąd:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [refreshActiveEntry]);
+
+    // --- 2. SYNCHRONIZACJA OFFLINE (zaktualizowana) ---
     const syncOfflineScans = useCallback(async (showToast = true) => {
         if (isSyncingRef.current) { return; }
         isSyncingRef.current = true;
@@ -74,7 +81,7 @@ export function EmployeeDashboard() {
             const offlineScanKeys = keys.filter(key => key.startsWith('offline_scan_'));
             if (offlineScanKeys.length === 0) return;
             if (showToast) toast.info(`Synchronizuję ${offlineScanKeys.length} wpisów...`);
-            let syncOk = true;
+
             for (const key of offlineScanKeys) {
                 const { value } = await Preferences.get({ key });
                 if (value) {
@@ -84,21 +91,20 @@ export function EmployeeDashboard() {
                         await Preferences.remove({ key });
                     } catch (error) {
                         console.error(`Błąd synchronizacji skanu ${key}:`, error);
-                        syncOk = false; break;
+                        toast.error('Błąd synchronizacji', { description: 'Jeden z wpisów offline nie mógł zostać zapisany.' });
+                        break;
                     }
                 }
             }
-            if (syncOk && offlineScanKeys.length > 0) {
-                const { keys: remainingKeys } = await Preferences.keys();
-                if (remainingKeys.filter(k => k.startsWith('offline_scan_')).length === 0) {
-                    if (showToast) toast.success('Dane offline zostały zsynchronizowane!');
-                    fetchData(); // Odśwież widok
-                }
+            const { keys: remainingKeys } = await Preferences.keys();
+            if (remainingKeys.filter(k => k.startsWith('offline_scan_')).length === 0) {
+                if (showToast) toast.success('Dane offline zostały zsynchronizowane!');
             }
+            await refreshActiveEntry(); // Zawsze odświeżaj po synchronizacji
         } finally {
             isSyncingRef.current = false;
         }
-    }, [fetchData, isSyncingRef]);
+    }, [refreshActiveEntry, isSyncingRef]);
 
     // --- 3. GŁÓWNY useEffect ---
     useEffect(() => {
@@ -112,9 +118,9 @@ export function EmployeeDashboard() {
     }, [fetchData, syncOfflineScans]);
 
 
-    // --- 4. OBSŁUGA SKANU QR (BEZ WYŚCIGU) ---
+    // --- 4. OBSŁUGA SKANU QR (zmieniona) ---
     const handleScanResult = async (content: string) => {
-        if (isSubmitting) return; // Blokada przed podwójnym kliknięciem
+        if (isSubmitting) return;
         setIsSubmitting(true);
 
         let location = null;
@@ -136,19 +142,15 @@ export function EmployeeDashboard() {
             }
 
             const status = response.data.status.trim();
-            // Zapisujemy dane z odpowiedzi API
-            const entryData = response.data.entry ? { ...(response.data.entry) } : null;
-
-            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
             if (status === 'clock_in') {
                 toast.success('Rozpoczęto pracę!');
-                setActiveEntry(entryData); // Ustawiamy stan na nowy wpis
             } else if (status === 'clock_out') {
                 toast.info('Zakończono pracę!');
-                setActiveEntry(null); // Czyścimy stan
             } else {
                 toast.error(`Nieznany status operacji: ${status}`);
             }
+
+            await refreshActiveEntry(); // Zawsze pobieraj aktualny stan z serwera
 
         } catch (error: unknown) {
             const axiosError = error as AxiosError;
@@ -156,6 +158,7 @@ export function EmployeeDashboard() {
             if (!networkStatus.connected || !axiosError.response) {
                 await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
                 toast.info('Brak połączenia. Zapisano dane offline.');
+                // Optimistyczna aktualizacja UI w trybie offline
                 if(activeEntry) {
                     setActiveEntry(null);
                 } else {
@@ -166,13 +169,13 @@ export function EmployeeDashboard() {
                 toast.error('Błąd serwera', { description: errorMessage || 'Nie udało się zarejestrować czasu.' });
             }
         } finally {
-            setIsSubmitting(false); // Odblokuj przyciski
+            setIsSubmitting(false);
         }
     };
 
-    // --- 5. OBSŁUGA SKANERA (BEZ ZMIAN) ---
+    // --- 5. OBSŁUGA SKANERA (bez zmian) ---
     const startNativeScan = async () => {
-        if (isSubmitting) return; // Zapobiegaj skanowaniu, jeśli poprzednie jest przetwarzane
+        if (isSubmitting) return;
         try {
             const result = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
             if (result.ScanResult) handleScanResult(result.ScanResult);
@@ -192,7 +195,7 @@ export function EmployeeDashboard() {
         }
     };
 
-    // --- 6. OBSŁUGA ZMIANY TASK-A Z LISTY (BEZ WYŚCIGU) ---
+    // --- 6. OBSŁUGA ZMIANY TASK-A Z LISTY (zmieniona) ---
     const handleSwitchTask = async (taskId: string) => {
         if (!taskId || isSubmitting) return;
         setIsSubmitting(true);
@@ -206,23 +209,20 @@ export function EmployeeDashboard() {
         } catch (e: unknown) { console.warn("[handleSwitchTask] Błąd GPS:", e); }
 
         try {
-            const response = await api.post('/time-entries/switch-task', { taskId, location });
-            const newEntry = response.data.newEntry ? { ...response.data.newEntry } : null;
-
-            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
-            setActiveEntry(newEntry); // Ustawiamy stan bezpośrednio
+            await api.post('/time-entries/switch-task', { taskId, location });
             toast.success('Rozpoczęto nowe zlecenie!');
+            await refreshActiveEntry(); // Zawsze pobieraj aktualny stan z serwera
         } catch (error: unknown) {
             console.error('[handleSwitchTask] Błąd API:', error);
             const axiosError = error as AxiosError;
             const errorMessage = (axiosError.response?.data as { message: string })?.message;
             toast.error('Błąd', { description: errorMessage || 'Nie udało się rozpocząć zlecenia.' });
         } finally {
-            setIsSubmitting(false); // Odblokuj
+            setIsSubmitting(false);
         }
     };
 
-    // --- 7. RENDEROWANIE (DODANO 'disabled' DO PRZYCISKÓW) ---
+    // --- 7. RENDEROWANIE (bez zmian) ---
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -231,7 +231,6 @@ export function EmployeeDashboard() {
         );
     }
 
-    // Widok: NIE W PRACY
     if (!activeEntry) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-4 pt-12 md:pt-4">
@@ -248,7 +247,6 @@ export function EmployeeDashboard() {
         );
     }
 
-    // Widok: W PRACY (OGÓLNY)
     if (activeEntry && !activeEntry.task_id) {
         return (
             <div className="p-4 pt-12 md:pt-4">
@@ -277,12 +275,11 @@ export function EmployeeDashboard() {
         );
     }
 
-    // Widok: W PRACY (ZLECENIE)
     if (activeEntry && activeEntry.task_id) {
         return (
             <div className="p-4 pt-12 md:pt-4">
                 <TimeEntryCard entry={activeEntry} />
-                <Button onClick={startNativeScan} variant="destructive" className="w-full mt-8" disabled={isSubmitting}>
+                <Button onClick={startNativeScan} variant="destructive" className="w-null mt-8" disabled={isSubmitting}>
                     {isSubmitting ? 'Przetwarzanie...' : 'Zakończ zlecenie'}
                 </Button>
             </div>
