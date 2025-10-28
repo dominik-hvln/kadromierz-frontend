@@ -136,14 +136,16 @@ export function EmployeeDashboard() {
             }
 
             const status = response.data.status.trim();
+            // Zapisujemy dane z odpowiedzi API
             const entryData = response.data.entry ? { ...(response.data.entry) } : null;
 
+            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
             if (status === 'clock_in') {
                 toast.success('Rozpoczęto pracę!');
-                setActiveEntry(entryData);
+                setActiveEntry(entryData); // Ustawiamy stan na nowy wpis
             } else if (status === 'clock_out') {
                 toast.info('Zakończono pracę!');
-                setActiveEntry(null);
+                setActiveEntry(null); // Czyścimy stan
             } else {
                 toast.error(`Nieznany status operacji: ${status}`);
             }
@@ -206,7 +208,9 @@ export function EmployeeDashboard() {
         try {
             const response = await api.post('/time-entries/switch-task', { taskId, location });
             const newEntry = response.data.newEntry ? { ...response.data.newEntry } : null;
-            setActiveEntry(newEntry);
+
+            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
+            setActiveEntry(newEntry); // Ustawiamy stan bezpośrednio
             toast.success('Rozpoczęto nowe zlecenie!');
         } catch (error: unknown) {
             console.error('[handleSwitchTask] Błąd API:', error);
@@ -227,6 +231,7 @@ export function EmployeeDashboard() {
         );
     }
 
+    // Widok: NIE W PRACY
     if (!activeEntry) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-4 pt-12 md:pt-4">
@@ -243,6 +248,7 @@ export function EmployeeDashboard() {
         );
     }
 
+    // Widok: W PRACY (OGÓLNY)
     if (activeEntry && !activeEntry.task_id) {
         return (
             <div className="p-4 pt-12 md:pt-4">
@@ -271,6 +277,7 @@ export function EmployeeDashboard() {
         );
     }
 
+    // Widok: W PRACY (ZLECENIE)
     if (activeEntry && activeEntry.task_id) {
         return (
             <div className="p-4 pt-12 md:pt-4">
