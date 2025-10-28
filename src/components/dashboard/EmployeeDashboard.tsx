@@ -145,7 +145,7 @@ export function EmployeeDashboard() {
                 toast.info('Zakończono pracę!');
                 setActiveEntry(null);
             } else {
-                toast.warn(`Nieznany status operacji: ${status}`);
+                toast.error(`Nieznany status operacji: ${status}`);
             }
 
         } catch (error: unknown) {
