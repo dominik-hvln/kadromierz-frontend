@@ -28,14 +28,50 @@ interface TimeEntry {
 }
 
 // --- Normalizacja kształtu wpisu z API ---
-const normalizeEntry = (e: any | null | undefined): TimeEntry | null => {
-    if (!e) return null;
-    return {
-        id: e.id,
-        start_time: e.start_time ?? e.startTime,
-        task_id: e.task_id ?? e.taskId ?? e.task?.id ?? null,
-        task: e.task ?? (e.taskName ? { name: e.taskName } : null),
-    } as TimeEntry;
+// --- Normalizacja kształtu wpisu z API (bez `any`) ---
+// Dopuszczamy różne kształty nazw pól z backendu i mapujemy je na TimeEntry
+type RawEntry = {
+    id: string;
+    start_time?: string;
+    startTime?: string;
+    task_id?: string | null;
+    taskId?: string | null;
+    task?: { id?: string | null; name?: string } | null;
+    taskName?: string;
+};
+
+const normalizeEntry = (e: unknown): TimeEntry | null => {
+    if (!e || typeof e !== 'object') return null;
+    const obj = e as Record<string, unknown>;
+    const id = obj['id'];
+    if (typeof id !== 'string') return null;
+
+    const start_time =
+        typeof obj['start_time'] === 'string'
+            ? (obj['start_time'] as string)
+            : typeof obj['startTime'] === 'string'
+                ? (obj['startTime'] as string)
+                : '';
+
+    const taskObj = obj['task'] && typeof obj['task'] === 'object' ? (obj['task'] as Record<string, unknown>) : null;
+
+    const task_id =
+        typeof obj['task_id'] === 'string' || obj['task_id'] === null
+            ? (obj['task_id'] as string | null)
+            : typeof obj['taskId'] === 'string' || obj['taskId'] === null
+                ? (obj['taskId'] as string | null)
+                : taskObj && typeof taskObj['id'] === 'string'
+                    ? (taskObj['id'] as string)
+                    : null;
+
+    const task =
+        taskObj && typeof taskObj['name'] === 'string'
+            ? { name: taskObj['name'] as string }
+            : typeof obj['taskName'] === 'string'
+                ? { name: obj['taskName'] as string }
+                : null;
+
+    return { id, start_time, task_id, task } as TimeEntry;
 };
 
 interface OfflineScan {
@@ -163,7 +199,7 @@ export function EmployeeDashboard() {
             }
 
         } catch (error: unknown) {
-            const axiosError = error as AxiosError;
+            const axiosError = error as AxiosError<unknown, unknown>;
             const networkStatus = await Network.getStatus();
             if (!networkStatus.connected || !axiosError.response) {
                 await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
@@ -240,7 +276,7 @@ export function EmployeeDashboard() {
             toast.success('Rozpoczęto nowe zlecenie!');
         } catch (error: unknown) {
             console.error('[handleSwitchTask] Błąd API:', error);
-            const axiosError = error as AxiosError;
+            const axiosError = error as AxiosError<unknown, unknown>;
             const errorMessage = (axiosError.response?.data as { message: string })?.message;
             toast.error('Błąd', { description: errorMessage || 'Nie udało się rozpocząć zlecenia.' });
         } finally {
