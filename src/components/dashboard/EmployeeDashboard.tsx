@@ -45,7 +45,7 @@ export function EmployeeDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const isSyncingRef = useIsSyncing();
 
-    // Funkcja do pobierania danych (teraz używana tylko przy starcie i po synchronizacji)
+    // --- 1. POBIERANIE DANYCH (TYLKO PRZY STARCIE) ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -64,7 +64,7 @@ export function EmployeeDashboard() {
         }
     }, []);
 
-    // Funkcja synchronizacji offline
+    // --- 2. SYNCHRONIZACJA OFFLINE (BEZ ZMIAN) ---
     const syncOfflineScans = useCallback(async (showToast = true) => {
         if (isSyncingRef.current) { return; }
         isSyncingRef.current = true;
@@ -99,6 +99,7 @@ export function EmployeeDashboard() {
         }
     }, [fetchData, isSyncingRef]);
 
+    // --- 3. GŁÓWNY useEffect ---
     useEffect(() => {
         setIsNative(Capacitor.isNativePlatform());
         fetchData();
@@ -110,9 +111,8 @@ export function EmployeeDashboard() {
     }, [fetchData, syncOfflineScans]);
 
 
-    // --- PRZEPISANA LOGIKA SKANOWANIA ---
+    // --- 4. OBSŁUGA SKANU QR (BEZ WYŚCIGU) ---
     const handleScanResult = async (content: string) => {
-        console.log(`[handleScanResult] Start. Kod: ${content}`);
         let location = null;
         try {
             if (Capacitor.isNativePlatform()) {
@@ -125,20 +125,16 @@ export function EmployeeDashboard() {
         const scanData: OfflineScan = { qrCodeValue: content, location, timestamp: new Date().toISOString(), id: `offline_scan_${Date.now()}` };
 
         try {
-            console.log('[handleScanResult] Wysyłam do API...');
             const response = await api.post('/time-entries/scan', scanData);
-
             if (!response || !response.data || typeof response.data.status !== 'string') {
-                console.error('[handleScanResult] BŁĄD: Nieprawidłowa odpowiedź API!');
                 toast.error('Błąd krytyczny: Nieprawidłowa odpowiedź serwera.');
                 return;
             }
 
             const status = response.data.status.trim();
-            const entryData = response.data.entry || response.data.newEntry ? { ...(response.data.entry || response.data.newEntry) } : null;
+            const entryData = response.data.entry || response.data.newEntry ? { ...(response.data.entry) } : null;
 
-            // --- KLUCZOWA ZMIANA: BRAK WYŚCIGU ---
-            // Nie wywołujemy fetchData(). Ustawiamy stan bezpośrednio na podstawie odpowiedzi.
+            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
             if (status === 'clock_in') {
                 toast.success('Rozpoczęto pracę!');
                 setActiveEntry(entryData); // Ustawiamy stan na nowy wpis
@@ -147,32 +143,27 @@ export function EmployeeDashboard() {
                 setActiveEntry(null); // Czyścimy stan
             } else {
                 toast.error(`Nieznany status operacji: ${status}`);
-                setActiveEntry(null); // Na wszelki wypadek
             }
 
         } catch (error: unknown) {
             const axiosError = error as AxiosError;
             const networkStatus = await Network.getStatus();
-
             if (!networkStatus.connected || !axiosError.response) {
-                console.log('[handleScanResult] Zapisuję offline...');
                 await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
                 toast.info('Brak połączenia. Zapisano dane offline.');
-
-                // Optymistyczna aktualizacja UI
                 if(activeEntry) {
                     setActiveEntry(null);
                 } else {
                     setActiveEntry({ id: scanData.id, start_time: scanData.timestamp, task: null, task_id: null });
                 }
             } else {
-                console.log('[handleScanResult] Błąd odpowiedzi serwera.');
                 const errorMessage = (axiosError.response?.data as { message: string })?.message;
                 toast.error('Błąd serwera', { description: errorMessage || 'Nie udało się zarejestrować czasu.' });
             }
         }
     };
 
+    // --- 5. OBSŁUGA SKANERA (BEZ ZMIAN) ---
     const startNativeScan = async () => {
         try {
             const result = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
@@ -184,21 +175,18 @@ export function EmployeeDashboard() {
             }
         }
     };
-
     const handleWebScanSuccess = (result: IDetectedBarcode[]) => {
         if (result && result.length > 0) handleScanResult(result[0].rawValue);
     };
-
     const handleWebScanError = (error: unknown) => {
         if (error instanceof Error && !error.message.includes('No QR code found')) {
             console.error('Błąd skanera webowego:', error.message);
         }
     };
 
-    // --- PRZEPISANA LOGIKA ZMIANY TASK-A ---
+    // --- 6. OBSŁUGA ZMIANY TASK-A Z LISTY (BEZ WYŚCIGU) ---
     const handleSwitchTask = async (taskId: string) => {
         if (!taskId) return;
-        console.log(`[handleSwitchTask] Start dla taska: ${taskId}`);
         let location = null;
         try {
             if (Capacitor.isNativePlatform()) {
@@ -211,7 +199,7 @@ export function EmployeeDashboard() {
             const response = await api.post('/time-entries/switch-task', { taskId, location });
             const newEntry = response.data.newEntry ? { ...response.data.newEntry } : null;
 
-            // --- KLUCZOWA ZMIANA: BRAK WYŚCIGU ---
+            // --- KLUCZOWA ZMIANA: BRAK `fetchData()` ---
             setActiveEntry(newEntry); // Ustawiamy stan bezpośrednio
             toast.success('Rozpoczęto nowe zlecenie!');
         } catch (error: unknown) {
@@ -222,11 +210,12 @@ export function EmployeeDashboard() {
         }
     };
 
-    // --- Renderowanie ---
+    // --- 7. RENDEROWANIE (BEZ ZMIAN) ---
     if (isLoading) {
         return <div className="p-4 text-center">Ładowanie statusu...</div>;
     }
 
+    // Widok: NIE W PRACY
     if (!activeEntry) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-4">
@@ -241,6 +230,7 @@ export function EmployeeDashboard() {
         );
     }
 
+    // Widok: W PRACY (OGÓLNY)
     if (activeEntry && !activeEntry.task_id) {
         return (
             <div className="p-4">
@@ -267,6 +257,7 @@ export function EmployeeDashboard() {
         );
     }
 
+    // Widok: W PRACY (ZLECENIE)
     if (activeEntry && activeEntry.task_id) {
         return (
             <div className="p-4">
