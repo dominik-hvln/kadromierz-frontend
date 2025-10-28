@@ -96,7 +96,7 @@ export function ActivityFeed() {
     }
 
     return (
-        <div className="glassmorphism-box p-6 max-h-[90vh] overflow-scroll">
+        <div className="glassmorphism-box p-6 max-h-[80vh] overflow-scroll">
             <h2 className="text-xl font-semibold mb-4">Aktywność na Żywo</h2>
             <ul className="space-y-6">
                 {events.length > 0 ? (
