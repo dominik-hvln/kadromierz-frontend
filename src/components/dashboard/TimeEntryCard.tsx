@@ -5,19 +5,18 @@ import { formatDistanceToNow } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { useEffect, useState } from 'react';
 
-// ✅ Definiujemy dokładny typ dla `entry`
+// Definiujemy dokładny typ dla `entry`
 interface TimeEntryCardProps {
     entry: {
         start_time: string;
-        task: { name: string } | null; // Zakładamy, że task może być nullem lub obiektem z nazwą
+        task: { name: string } | null;
     };
 }
 
-export function TimeEntryCard({ entry }: TimeEntryCardProps) { // ✅ Używamy nowego typu
+export function TimeEntryCard({ entry }: TimeEntryCardProps) {
     const [time, setTime] = useState('');
 
     useEffect(() => {
-        // Sprawdzamy, czy entry.start_time jest poprawną datą
         const startTime = new Date(entry.start_time);
         if (!isNaN(startTime.getTime())) {
             const update = () => setTime(formatDistanceToNow(startTime, { addSuffix: true, locale: pl }));
@@ -25,7 +24,7 @@ export function TimeEntryCard({ entry }: TimeEntryCardProps) { // ✅ Używamy n
             const interval = setInterval(update, 10000); // Aktualizuj co 10 sekund
             return () => clearInterval(interval);
         } else {
-            setTime('Nieprawidłowy czas startu'); // Komunikat w razie błędu
+            setTime('Nieprawidłowy czas startu');
         }
     }, [entry.start_time]);
 
