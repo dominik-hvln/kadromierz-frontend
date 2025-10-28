@@ -45,29 +45,26 @@ export function EmployeeDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const isSyncingRef = useIsSyncing();
 
-    // --- 1. POBIERANIE DANYCH ---
+    // Funkcja do pobierania danych (teraz używana tylko przy starcie i po synchronizacji)
     const fetchData = useCallback(async () => {
-        console.log('[fetchData] Start');
         setIsLoading(true);
         try {
             const [entryRes, tasksRes] = await Promise.all([
                 api.get('/time-entries/my-active'),
                 api.get('/tasks/my'),
             ]);
-            console.log('[fetchData] Otrzymano activeEntry:', entryRes.data);
             setActiveEntry(entryRes.data || null);
             setAvailableTasks(tasksRes.data);
         } catch (error: unknown) {
             console.error('[fetchData] Błąd:', error);
-            toast.error('Błąd', { description: 'Nie udało się pobrać aktualnego statusu.' });
+            toast.error('Błąd', { description: 'Nie udało się pobrać statusu.' });
             setActiveEntry(null);
         } finally {
             setIsLoading(false);
-            console.log('[fetchData] Koniec');
         }
     }, []);
 
-    // --- 2. SYNCHRONIZACJA OFFLINE ---
+    // Funkcja synchronizacji offline
     const syncOfflineScans = useCallback(async (showToast = true) => {
         if (isSyncingRef.current) { return; }
         isSyncingRef.current = true;
@@ -86,8 +83,7 @@ export function EmployeeDashboard() {
                         await Preferences.remove({ key });
                     } catch (error) {
                         console.error(`Błąd synchronizacji skanu ${key}:`, error);
-                        syncOk = false;
-                        break;
+                        syncOk = false; break;
                     }
                 }
             }
@@ -95,7 +91,7 @@ export function EmployeeDashboard() {
                 const { keys: remainingKeys } = await Preferences.keys();
                 if (remainingKeys.filter(k => k.startsWith('offline_scan_')).length === 0) {
                     if (showToast) toast.success('Dane offline zostały zsynchronizowane!');
-                    fetchData(); // Odśwież widok TYLKO po udanej synchronizacji
+                    fetchData(); // Odśwież widok
                 }
             }
         } finally {
@@ -103,7 +99,6 @@ export function EmployeeDashboard() {
         }
     }, [fetchData, isSyncingRef]);
 
-    // --- 3. GŁÓWNY useEffect ---
     useEffect(() => {
         setIsNative(Capacitor.isNativePlatform());
         fetchData();
@@ -114,7 +109,8 @@ export function EmployeeDashboard() {
         return () => { networkListenerPromise.then(listener => listener.remove()); };
     }, [fetchData, syncOfflineScans]);
 
-    // --- 4. OBSŁUGA SKANU QR (NOWA LOGIKA) ---
+
+    // --- PRZEPISANA LOGIKA SKANOWANIA ---
     const handleScanResult = async (content: string) => {
         console.log(`[handleScanResult] Start. Kod: ${content}`);
         let location = null;
@@ -140,9 +136,9 @@ export function EmployeeDashboard() {
 
             const status = response.data.status.trim();
             const entryData = response.data.entry || response.data.newEntry ? { ...(response.data.entry || response.data.newEntry) } : null;
-            console.log(`[handleScanResult] Otrzymany status: "${status}"`);
 
-            // --- KLUCZOWA ZMIANA: NATYCHMIASTOWA AKTUALIZACJA STANU ---
+            // --- KLUCZOWA ZMIANA: BRAK WYŚCIGU ---
+            // Nie wywołujemy fetchData(). Ustawiamy stan bezpośrednio na podstawie odpowiedzi.
             if (status === 'clock_in') {
                 toast.success('Rozpoczęto pracę!');
                 setActiveEntry(entryData); // Ustawiamy stan na nowy wpis
@@ -150,7 +146,8 @@ export function EmployeeDashboard() {
                 toast.info('Zakończono pracę!');
                 setActiveEntry(null); // Czyścimy stan
             } else {
-                toast.error(`Nieznany status operacji: ${status}`);
+                toast.warn(`Nieznany status operacji: ${status}`);
+                setActiveEntry(null); // Na wszelki wypadek
             }
 
         } catch (error: unknown) {
@@ -176,7 +173,6 @@ export function EmployeeDashboard() {
         }
     };
 
-    // --- 5. OBSŁUGA SKANERA (BEZ ZMIAN) ---
     const startNativeScan = async () => {
         try {
             const result = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
@@ -188,16 +184,18 @@ export function EmployeeDashboard() {
             }
         }
     };
+
     const handleWebScanSuccess = (result: IDetectedBarcode[]) => {
         if (result && result.length > 0) handleScanResult(result[0].rawValue);
     };
+
     const handleWebScanError = (error: unknown) => {
         if (error instanceof Error && !error.message.includes('No QR code found')) {
             console.error('Błąd skanera webowego:', error.message);
         }
     };
 
-    // --- 6. OBSŁUGA ZMIANY TASK-A Z LISTY (NOWA LOGIKA) ---
+    // --- PRZEPISANA LOGIKA ZMIANY TASK-A ---
     const handleSwitchTask = async (taskId: string) => {
         if (!taskId) return;
         console.log(`[handleSwitchTask] Start dla taska: ${taskId}`);
@@ -213,10 +211,9 @@ export function EmployeeDashboard() {
             const response = await api.post('/time-entries/switch-task', { taskId, location });
             const newEntry = response.data.newEntry ? { ...response.data.newEntry } : null;
 
-            // --- KLUCZOWA ZMIANA: NATYCHMIASTOWA AKTUALIZACJA STANU ---
-            setActiveEntry(newEntry);
+            // --- KLUCZOWA ZMIANA: BRAK WYŚCIGU ---
+            setActiveEntry(newEntry); // Ustawiamy stan bezpośrednio
             toast.success('Rozpoczęto nowe zlecenie!');
-
         } catch (error: unknown) {
             console.error('[handleSwitchTask] Błąd API:', error);
             const axiosError = error as AxiosError;
@@ -225,7 +222,7 @@ export function EmployeeDashboard() {
         }
     };
 
-    // --- 7. RENDEROWANIE (BEZ ZMIAN) ---
+    // --- Renderowanie ---
     if (isLoading) {
         return <div className="p-4 text-center">Ładowanie statusu...</div>;
     }
