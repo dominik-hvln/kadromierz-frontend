@@ -16,9 +16,53 @@ import { Capacitor } from '@capacitor/core';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Preferences } from '@capacitor/preferences';
 
+/** ─────────────────────────────────────────────────────────
+ *  Klucze legacy (Twoje dotychczasowe, globalne):
+ *  - BIO_AUTH_EMAIL_KEY        -> email
+ *  - BIO_AUTH_PASSWORD_KEY     -> password
+ *  - BIO_AUTH_DECLINED_KEY     -> 'true' jeśli user odrzucił
+ *  Pozostawiamy je dla kompatybilności i migrujemy do trybu per-email.
+ *  ───────────────────────────────────────────────────────── */
 const BIO_AUTH_EMAIL_KEY = 'bio_auth_email';
 const BIO_AUTH_PASSWORD_KEY = 'bio_auth_password';
 const BIO_AUTH_DECLINED_KEY = 'bio_auth_declined';
+
+/** Nowe, bezpieczniejsze klucze per-email + wskaźnik ostatnio użytego maila */
+const BIO_LAST_EMAIL_KEY = 'bio_auth:last_email';
+const bioKeys = (email: string) => ({
+    enrolled: `bio_auth:enrolled:${email}`,   // '1' gdy zapisano dane dla tego maila
+    declined: `bio_auth:declined:${email}`,   // '1' gdy odmówił — nie pytamy ponownie
+    pass:     `bio_auth:password:${email}`,   // hasło dla tego maila (jak dotąd: w Preferences)
+});
+
+/** Migracja ze starych globalnych kluczy do nowych per-email (tylko jeśli pasujący e-mail) */
+async function migrateLegacyIfNeeded(currentEmail: string) {
+    const [legacyEmail, legacyPass, legacyDeclined] = await Promise.all([
+        Preferences.get({ key: BIO_AUTH_EMAIL_KEY }),
+        Preferences.get({ key: BIO_AUTH_PASSWORD_KEY }),
+        Preferences.get({ key: BIO_AUTH_DECLINED_KEY }),
+    ]);
+
+    if (legacyEmail.value && legacyEmail.value === currentEmail) {
+        const k = bioKeys(currentEmail);
+        const enrolled = (await Preferences.get({ key: k.enrolled })).value;
+
+        // Jeśli nie było jeszcze per-email, przepisz wartość legacy
+        if (!enrolled && legacyPass.value) {
+            await Preferences.set({ key: k.pass, value: legacyPass.value });
+            await Preferences.set({ key: k.enrolled, value: '1' });
+            await Preferences.set({ key: BIO_LAST_EMAIL_KEY, value: currentEmail });
+        }
+        if (legacyDeclined.value === 'true') {
+            await Preferences.set({ key: k.declined, value: '1' });
+        }
+
+        // (opcjonalnie) posprzątaj stare globalne klucze
+        // await Preferences.remove({ key: BIO_AUTH_EMAIL_KEY });
+        // await Preferences.remove({ key: BIO_AUTH_PASSWORD_KEY });
+        // await Preferences.remove({ key: BIO_AUTH_DECLINED_KEY });
+    }
+}
 
 export default function LoginPage() {
     const router = useRouter();
@@ -35,8 +79,8 @@ export default function LoginPage() {
             const native = Capacitor.isNativePlatform();
             setIsNative(native);
             if (native) {
-                const { isAvailable } = await NativeBiometric.isAvailable();
-                setCanUseBiometrics(isAvailable);
+                const { isAvailable } = await NativeBiometric.isAvailable().catch(() => ({ isAvailable: false }));
+                setCanUseBiometrics(!!isAvailable);
             }
         };
 
@@ -45,7 +89,6 @@ export default function LoginPage() {
             router.push('/dashboard/');
             return;
         }
-
         checkPlatform();
     }, [isHydrating, isAuthenticated, router]);
 
@@ -55,31 +98,48 @@ export default function LoginPage() {
         setIsLoading(true);
 
         try {
-            const response = await api.post('/auth/login', {
-                email,
-                password,
-            });
-
+            const response = await api.post('/auth/login', { email, password });
             const { session, profile } = response.data;
             if (!session || !profile) {
-                throw new Error("Nieprawidłowa odpowiedź serwera.");
+                throw new Error('Nieprawidłowa odpowiedź serwera.');
             }
 
             setSession(session.access_token, session.refresh_token, profile);
 
+            // 🔁 Migracja z legacy (jeśli kiedyś zapisano globalne klucze)
+            await migrateLegacyIfNeeded(email);
+
+            // ✅ Jednorazowe pytanie per-email (z pamiętaniem decyzji)
             if (isNative && canUseBiometrics) {
-                const wantsSave = window.confirm("Czy chcesz zapisać te dane logowania, aby używać biometrii do autouzupełniania w przyszłości?");
-                if (wantsSave) {
-                    await Preferences.set({ key: BIO_AUTH_EMAIL_KEY, value: email });
-                    await Preferences.set({ key: BIO_AUTH_PASSWORD_KEY, value: password });
-                    toast.success("Dane do biometrii zapisane!");
+                const k = bioKeys(email);
+                const [enrolled, declined] = await Promise.all([
+                    Preferences.get({ key: k.enrolled }),
+                    Preferences.get({ key: k.declined }),
+                ]);
+
+                // Jeżeli już zapisane albo wcześniej odrzucono — NIE pytamy
+                if (enrolled.value === '1' || declined.value === '1') {
+                    // jeśli zapisane, zaktualizuj hasło (gdyby się zmieniło)
+                    if (enrolled.value === '1') {
+                        await Preferences.set({ key: k.pass, value: password });
+                        await Preferences.set({ key: BIO_LAST_EMAIL_KEY, value: email });
+                    }
                 } else {
-                    await Preferences.set({ key: BIO_AUTH_DECLINED_KEY, value: 'true' });
+                    const wantsSave = window.confirm(
+                        'Czy chcesz zapisać te dane logowania, aby używać biometrii do autouzupełniania w przyszłości?'
+                    );
+                    if (wantsSave) {
+                        await Preferences.set({ key: k.pass, value: password });
+                        await Preferences.set({ key: k.enrolled, value: '1' });
+                        await Preferences.set({ key: BIO_LAST_EMAIL_KEY, value: email });
+                        toast.success('Dane do biometrii zapisane!');
+                    } else {
+                        await Preferences.set({ key: k.declined, value: '1' });
+                    }
                 }
             }
 
             router.push('/dashboard/');
-
         } catch (err: unknown) {
             if (err instanceof AxiosError) {
                 setError(err.response?.data?.message || 'Wystąpił nieoczekiwany błąd.');
@@ -100,22 +160,42 @@ export default function LoginPage() {
                 reason: 'Użyj biometrii, aby uzupełnić dane logowania',
                 title: 'Weryfikacja tożsamości',
             });
+
+            // najpierw zajrzyj do nowego trybu per-email
+            const lastEmail = (await Preferences.get({ key: BIO_LAST_EMAIL_KEY })).value;
+            if (lastEmail) {
+                const pass = (await Preferences.get({ key: bioKeys(lastEmail).pass })).value;
+                if (pass) {
+                    setEmail(lastEmail);
+                    setPassword(pass);
+                    toast.success("Dane uzupełnione. Kliknij 'Zaloguj się'.");
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // fallback: legacy klucze globalne
             const [emailResult, passwordResult] = await Promise.all([
                 Preferences.get({ key: BIO_AUTH_EMAIL_KEY }),
-                Preferences.get({ key: BIO_AUTH_PASSWORD_KEY })
+                Preferences.get({ key: BIO_AUTH_PASSWORD_KEY }),
             ]);
+
             if (!emailResult.value || !passwordResult.value) {
-                toast.error("Brak zapisanych danych do autouzupełnienia.");
+                toast.error('Brak zapisanych danych do autouzupełnienia.');
                 setIsLoading(false);
                 return;
             }
+
             setEmail(emailResult.value);
             setPassword(passwordResult.value);
             toast.success("Dane uzupełnione. Kliknij 'Zaloguj się'.");
         } catch (e: unknown) {
             console.error(e);
             const errorMessage = e instanceof Error ? e.message : 'Błąd biometrii';
-            if (!errorMessage.toLowerCase().includes('canceled') && !errorMessage.toLowerCase().includes('user interaction failed')) {
+            if (
+                !errorMessage.toLowerCase().includes('canceled') &&
+                !errorMessage.toLowerCase().includes('user interaction failed')
+            ) {
                 toast.error('Logowanie biometryczne nie powiodło się.');
             }
         } finally {
@@ -124,7 +204,7 @@ export default function LoginPage() {
     };
 
     if (isHydrating) {
-        return <div className="flex items-center justify-center min-h-screen bg-gray-100">Ładowanie sesji...</div>
+        return <div className="flex items-center justify-center min-h-screen bg-gray-100">Ładowanie sesji...</div>;
     }
 
     return (
