@@ -43,4 +43,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-feature android:name="android.hardware.location.gps" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Android 9+ (BiometricPrompt) -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Dla starszych urządzeń (API 23–27) -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 </manifest>

@@ -4,7 +4,6 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,102 +17,115 @@ export default function RegisterPage() {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [companyName, setCompanyName] = useState('');
+
+    // ✅ NOWY STAN: Przełączanie widoku po sukcesie
+    const [isSuccess, setIsSuccess] = useState(false);
+
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-        setError('');
-        setSuccess('');
-        setIsLoading(true);
-
-        if (!email || !password || !firstName || !lastName || !companyName) {
-            setError('Wszystkie pola są wymagane.');
-            setIsLoading(false);
+        if (password.length < 8) {
+            setError('Hasło musi mieć co najmniej 8 znaków.');
             return;
         }
+        setError('');
+        setIsLoading(true);
 
         try {
-            const response = await api.post('/auth/register', {
+            await api.post('/auth/register', {
                 email,
                 password,
-                firstName, // ZMIANA
-                lastName,  // ZMIANA
+                firstName,
+                lastName,
                 companyName,
             });
 
-            setSuccess(response.data.message);
+            // ✅ SUKCES: Pokaż widok "Sprawdź e-mail"
+            setIsSuccess(true);
 
-            setEmail('');
-            setPassword('');
-            setFirstName(''); // ZMIANA
-            setLastName('');  // ZMIANA
-            setCompanyName('');
-
-            setTimeout(() => {
-                router.push('/');
-            }, 3000);
-
-        } catch (err) {
+        } catch (err: unknown) {
             if (err instanceof AxiosError) {
                 setError(err.response?.data?.message || 'Wystąpił nieoczekiwany błąd.');
             } else {
-                setError('Wystąpił nieznany błąd.');
+                const errorMessage = err instanceof Error ? err.message : 'Wystąpił nieznany błąd.';
+                setError(errorMessage);
             }
         } finally {
             setIsLoading(false);
         }
     };
 
+    // --- Widok po udanej rejestracji ---
+    if (isSuccess) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <Card className="w-full max-w-sm">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-2xl">Rejestracja udana!</CardTitle>
+                        <CardDescription>
+                            Wysłaliśmy link aktywacyjny na Twój adres e-mail.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-center text-muted-foreground">
+                            Proszę, kliknij link w wiadomości, aby aktywować swoje konto. (Sprawdź folder spam!)
+                        </p>
+                        <Button asChild className="w-full mt-6">
+                            <Link href="/">Wróć do logowania</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    // --- Domyślny formularz rejestracji ---
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <Card className="w-full max-w-md">
+            <Card className="w-full max-w-sm">
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl">Stwórz konto</CardTitle>
-                    <CardDescription>Rozpocznij pracę ze swoją firmą w kilka chwil.</CardDescription>
+                    <CardDescription>Rozpocznij darmowy okres próbny.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {success ? (
-                        <p className="text-green-600 text-lg text-center">{success}</p>
-                    ) : (
-                        <form onSubmit={handleSubmit}>
-                            <div className="grid gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="companyName">Nazwa firmy</Label>
-                                    <Input id="companyName" type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="firstName">Imię</Label>
-                                        <Input id="firstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="lastName">Nazwisko</Label>
-                                        <Input id="lastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                                    </div>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Adres e-mail</Label>
-                                    <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="password">Hasło</Label>
-                                    <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                                </div>
-                                <Button type="submit" disabled={isLoading} className="w-full">
-                                    {isLoading ? 'Rejestrowanie...' : 'Stwórz konto'}
-                                </Button>
-                                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    <form onSubmit={handleSubmit}>
+                        <div className="grid gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="companyName">Nazwa firmy</Label>
+                                <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
                             </div>
-                            <div className="mt-4 text-center text-sm">
-                                Masz już konto?{' '}
-                                <Link href="/" className="underline">
-                                    Zaloguj się
-                                </Link>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="firstName">Imię</Label>
+                                    <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="lastName">Nazwisko</Label>
+                                    <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                                </div>
                             </div>
-                        </form>
-                    )}
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Adres e-mail</Label>
+                                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="password">Hasło (min. 8 znaków)</Label>
+                                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                            </div>
+                            <Button type="submit" disabled={isLoading} className="w-full">
+                                {isLoading ? 'Tworzenie konta...' : 'Zarejestruj się'}
+                            </Button>
+                            {error && <p className="text-sm font-medium text-destructive text-center">{error}</p>}
+                        </div>
+                    </form>
+                    <div className="mt-4 text-center text-sm">
+                        Masz już konto?{' '}
+                        <Link href="/" className="underline">
+                            Zaloguj się
+                        </Link>
+                    </div>
                 </CardContent>
             </Card>
         </div>
