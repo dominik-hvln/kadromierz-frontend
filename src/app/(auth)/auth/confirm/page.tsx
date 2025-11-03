@@ -1,38 +1,72 @@
-// src/app/(auth)/auth/confirm/page.tsx
 'use client';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 
-// Ta strona jest bardzo prosta. Supabase wykonało już aktywację w tle,
-// zanim użytkownik tu trafił. My tylko wyświetlamy komunikat.
-
-export default function AuthConfirmPage() {
-    const [message, setMessage] = useState("Potwierdzanie konta...");
+export default function ConfirmEmailPage() {
+    const search = useSearchParams();
+    const router = useRouter();
+    const token = search.get('token') || '';
+    const [state, setState] = useState<'loading'|'ok'|'error'>('loading');
+    const [message, setMessage] = useState<string>('');
 
     useEffect(() => {
-        // Dajemy chwilę na ewentualne przetworzenie
-        const timer = setTimeout(() => {
-            setMessage("Konto zostało pomyślnie aktywowane!");
-        }, 1500);
+        (async () => {
+            if (!token) {
+                setState('error');
+                setMessage('Brak tokenu.');
+                return;
+            }
+            try {
+                await api.post('/auth/confirm', { token });
+                setState('ok');
+            } catch (e: any) {
+                setState('error');
+                setMessage(e?.response?.data?.message || 'Nie udało się potwierdzić adresu e-mail.');
+            }
+        })();
+    }, [token]);
 
-        return () => clearTimeout(timer);
-    }, []);
+    if (state === 'loading') {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <p className="text-muted-foreground">Aktywuję konto…</p>
+            </div>
+        );
+    }
+
+    if (state === 'ok') {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <Card className="w-full max-w-sm">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-2xl">Konto aktywne 🎉</CardTitle>
+                        <CardDescription>Możesz się teraz zalogować.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button asChild className="w-full">
+                            <Link href="/">Przejdź do logowania</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex items-center justify-center min-h-screen">
             <Card className="w-full max-w-sm">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">{message}</CardTitle>
+                    <CardTitle className="text-2xl">Nie udało się</CardTitle>
+                    <CardDescription>{message || 'Token jest nieprawidłowy albo wygasł.'}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-center text-muted-foreground">
-                        Możesz się teraz zalogować na swoje konto.
-                    </p>
-                    <Button asChild className="w-full mt-6">
-                        <Link href="/">Przejdź do logowania</Link>
+                <CardContent className="space-y-3">
+                    <Button asChild variant="secondary" className="w-full">
+                        <Link href="/">Wróć do logowania</Link>
                     </Button>
                 </CardContent>
             </Card>
