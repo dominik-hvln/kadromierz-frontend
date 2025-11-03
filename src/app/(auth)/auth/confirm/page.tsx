@@ -2,57 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-
-// Klient Supabase po stronie przeglądarki (publiczny anon key)
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-);
 
 type ViewState = 'loading' | 'ok' | 'error';
 
 export default function ConfirmEmailPage() {
     const search = useSearchParams();
-    const code = search.get('code'); // Supabase v2 zwykle przekazuje ?code=...
     const errorDesc = search.get('error_description');
+    const code = search.get('code'); // Supabase zwykle dodaje ?code=...
     const [state, setState] = useState<ViewState>('loading');
     const [message, setMessage] = useState<string>('');
 
     useEffect(() => {
-        (async () => {
-            // Jeśli Supabase przysłał błąd w query
-            if (errorDesc) {
-                setState('error');
-                setMessage(errorDesc);
-                return;
-            }
+        // Jeżeli Supabase przekazał opis błędu w query → pokaż go
+        if (errorDesc) {
+            setState('error');
+            setMessage(errorDesc);
+            return;
+        }
 
-            // Brak ?code — sprawdź fallback przez hash (starsze linki)
-            if (!code) {
-                const hash = typeof window !== 'undefined' ? window.location.hash : '';
-                if (hash.includes('access_token')) {
-                    // e-mail już potwierdzony po stronie Supabase, sesja ustawiona przez hash
-                    setState('ok');
-                    return;
-                }
-                setState('error');
-                setMessage('Brak kodu potwierdzającego.');
-                return;
-            }
+        // Jeśli jest ?code albo w hash jest access_token (starsze linki) → OK
+        const hasHashAccess =
+            typeof window !== 'undefined' && window.location.hash.includes('access_token');
 
-            // Zamień code -> sesja (ustawia sesję po stronie klienta)
-            const { error } = await supabase.auth.exchangeCodeForSession(code);
-            if (error) {
-                setState('error');
-                setMessage(error.message || 'Nie udało się aktywować konta.');
-                return;
-            }
+        if (code || hasHashAccess) {
             setState('ok');
-        })();
+        } else {
+            setState('error');
+            setMessage('Brak kodu potwierdzającego.');
+        }
     }, [code, errorDesc]);
 
     if (state === 'loading') {
@@ -69,16 +49,12 @@ export default function ConfirmEmailPage() {
                 <Card className="w-full max-w-sm">
                     <CardHeader className="text-center">
                         <CardTitle className="text-2xl">Konto aktywne 🎉</CardTitle>
-                        <CardDescription>Możesz przejść do logowania.</CardDescription>
+                        <CardDescription>Możesz się teraz zalogować.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <Button asChild className="w-full">
                             <Link href="/">Przejdź do logowania</Link>
                         </Button>
-                        {/* Jeśli wolisz od razu wpuszczać do aplikacji, możesz dodać:
-            <Button asChild variant="secondary" className="w-full">
-              <Link href="/dashboard">Przejdź do aplikacji</Link>
-            </Button> */}
                     </CardContent>
                 </Card>
             </div>
