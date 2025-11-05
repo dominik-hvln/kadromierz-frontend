@@ -255,6 +255,10 @@ export default function LoginPage() {
                             Zarejestruj się
                         </Link>
                     </div>
+                    <div className="mt-2 text-center text-sm text-muted-foreground">
+                        Zapomniałeś hasła?{' '}
+                        <a className="underline hover:no-underline" href="/auth/forgot">Zresetuj</a>
+                    </div>
                 </CardContent>
             </Card>
         </div>
