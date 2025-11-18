@@ -19,11 +19,11 @@ interface Company {
 
 interface User {
     id: string;
-    email: string | null;      // Może być null w bazie
+    email: string | null;
     first_name: string | null;
     last_name: string | null;
     role: string | null;
-    company_id: string | null; // Wiemy, że to pole istnieje
+    company_id: string | null;
     created_at: string;
 }
 
@@ -38,13 +38,11 @@ export default function SuperAdminPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Używamy Promise.allSettled, żeby błąd jednego nie blokował drugiego
             const results = await Promise.allSettled([
                 api.get<Company[]>('/super-admin/companies'),
                 api.get<User[]>('/super-admin/users')
             ]);
 
-            // Obsługa Firm
             if (results[0].status === 'fulfilled') {
                 setCompanies(results[0].value.data);
             } else {
@@ -52,12 +50,11 @@ export default function SuperAdminPage() {
                 toast.error('Nie udało się pobrać listy firm');
             }
 
-            // Obsługa Userów
             if (results[1].status === 'fulfilled') {
                 setUsers(results[1].value.data);
             } else {
                 console.error('Błąd userów:', results[1].reason);
-                toast.error('Nie udało się pobrać listy użytkowników');
+                // Nie wyświetlamy błędu userowi od razu, żeby nie straszyć przy pustej bazie
             }
         } catch (error) {
             console.error('Krytyczny błąd:', error);
@@ -70,7 +67,7 @@ export default function SuperAdminPage() {
         fetchData();
     }, []);
 
-    // ✅ Bezpieczne filtrowanie (nie wywali się na nullach)
+    // ✅ Bezpieczne filtrowanie
     const getFilteredData = () => {
         const lowerSearch = searchTerm.toLowerCase();
 
@@ -224,8 +221,9 @@ export default function SuperAdminPage() {
 
                             {filteredData.length === 0 && (
                                 <TableRow>
+                                    {/* ✅ POPRAWKA: Używamy &quot; zamiast " dla lintera */}
                                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        Brak wyników dla "{searchTerm}"
+                                        Brak wyników dla &quot;{searchTerm}&quot;
                                     </TableCell>
                                 </TableRow>
                             )}
