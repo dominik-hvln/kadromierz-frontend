@@ -1,20 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api'; //
+import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
+// ✅ 1. Definiujemy interfejs zamiast używać 'any'
+interface Company {
+    id: string;
+    name: string | null; // Zakładam, że nazwa może być nullem
+    created_at: string;
+    // Możesz tu dodać inne pola, jeśli backend je zwraca (np. nip, address)
+}
+
 export default function SuperAdminPage() {
-    const [companies, setCompanies] = useState<any[]>([]);
+    // ✅ 2. Używamy naszego interfejsu w useState
+    const [companies, setCompanies] = useState<Company[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchCompanies = async () => {
             try {
-                // Używamy Twojej instancji axios z api.ts, która ma już token
-                const response = await api.get('/super-admin/companies');
+                // ✅ 3. Możemy też dodać typowanie do odpowiedzi axios, jeśli chcemy być super-poprawni
+                // Ale tutaj TypeScript sam wywnioskuje typ response.data, jeśli api jest dobrze otypowane,
+                // lub po prostu 'zaufa' nam przy przypisaniu do setCompanies.
+                const response = await api.get<Company[]>('/super-admin/companies');
                 setCompanies(response.data);
             } catch (error) {
                 console.error('Błąd pobierania firm:', error);
@@ -45,7 +56,6 @@ export default function SuperAdminPage() {
                         <div className="text-2xl font-bold">{companies.length}</div>
                     </CardContent>
                 </Card>
-                {/* Tu w przyszłości dodamy np. liczbę aktywnych subskrypcji */}
             </div>
 
             <Card>
