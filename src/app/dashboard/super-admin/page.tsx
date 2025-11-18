@@ -1,16 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api'; //
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { api } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Users, Plus, Search, RefreshCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Building2, Users, Search, RefreshCcw, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Typy danych z obsługą brakujących pól
+// ✅ Dokładne typy zgodne z Twoją bazą
 interface Company {
     id: string;
     name: string | null;
@@ -19,10 +19,12 @@ interface Company {
 
 interface User {
     id: string;
-    email?: string; // Opcjonalne, bo może nie przyjść z backendu
-    first_name?: string;
-    last_name?: string;
-    role?: string;
+    email: string | null;      // Może być null w bazie
+    first_name: string | null;
+    last_name: string | null;
+    role: string | null;
+    company_id: string | null; // Wiemy, że to pole istnieje
+    created_at: string;
 }
 
 export default function SuperAdminPage() {
@@ -32,21 +34,33 @@ export default function SuperAdminPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Funkcja pobierająca dane
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Pobieramy dane niezależnie
-            const companiesPromise = api.get<Company[]>('/super-admin/companies')
-                .then(res => setCompanies(res.data))
-                .catch(err => console.error('Błąd firm:', err));
+            // Używamy Promise.allSettled, żeby błąd jednego nie blokował drugiego
+            const results = await Promise.allSettled([
+                api.get<Company[]>('/super-admin/companies'),
+                api.get<User[]>('/super-admin/users')
+            ]);
 
-            const usersPromise = api.get<User[]>('/super-admin/users')
-                .then(res => setUsers(res.data))
-                .catch(err => console.error('Błąd userów:', err));
+            // Obsługa Firm
+            if (results[0].status === 'fulfilled') {
+                setCompanies(results[0].value.data);
+            } else {
+                console.error('Błąd firm:', results[0].reason);
+                toast.error('Nie udało się pobrać listy firm');
+            }
 
-            await Promise.allSettled([companiesPromise, usersPromise]);
+            // Obsługa Userów
+            if (results[1].status === 'fulfilled') {
+                setUsers(results[1].value.data);
+            } else {
+                console.error('Błąd userów:', results[1].reason);
+                toast.error('Nie udało się pobrać listy użytkowników');
+            }
         } catch (error) {
-            toast.error('Błąd pobierania danych');
+            console.error('Krytyczny błąd:', error);
         } finally {
             setLoading(false);
         }
@@ -56,45 +70,50 @@ export default function SuperAdminPage() {
         fetchData();
     }, []);
 
-    // ✅ BEZPIECZNE FILTROWANIE (Naprawa Twojego błędu)
-    const filteredCompanies = companies.filter(c =>
-        (c.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // ✅ Bezpieczne filtrowanie (nie wywali się na nullach)
+    const getFilteredData = () => {
+        const lowerSearch = searchTerm.toLowerCase();
 
-    const filteredUsers = users.filter(u => {
-        const search = searchTerm.toLowerCase();
-        const email = (u.email || '').toLowerCase();
-        const lastName = (u.last_name || '').toLowerCase();
-        const firstName = (u.first_name || '').toLowerCase();
+        if (activeTab === 'companies') {
+            return companies.filter(c =>
+                (c.name || '').toLowerCase().includes(lowerSearch) ||
+                c.id.toLowerCase().includes(lowerSearch)
+            );
+        } else {
+            return users.filter(u =>
+                (u.email || '').toLowerCase().includes(lowerSearch) ||
+                (u.last_name || '').toLowerCase().includes(lowerSearch) ||
+                (u.first_name || '').toLowerCase().includes(lowerSearch)
+            );
+        }
+    };
 
-        return email.includes(search) || lastName.includes(search) || firstName.includes(search);
-    });
+    const filteredData = getFilteredData();
 
     return (
-        <div className="p-8 space-y-6 h-full overflow-y-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-6 space-y-6 h-full flex flex-col">
+            {/* Nagłówek */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Panel Super Admina</h1>
-                    <p className="text-muted-foreground">Zarządzaj firmami i użytkownikami.</p>
+                    <p className="text-muted-foreground">Zarządzanie globalne systemem SaaS.</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" size="icon" onClick={fetchData} disabled={loading}>
                         <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    {/* Placeholdery na przyszłe modale */}
-                    {activeTab === 'companies' ? (
-                        <Button><Plus className="mr-2 h-4 w-4" /> Dodaj Firmę</Button>
-                    ) : (
-                        <Button><Plus className="mr-2 h-4 w-4" /> Dodaj Użytkownika</Button>
-                    )}
+                    <Button>
+                        <Plus className="mr-2 h-4 w-4" />
+                        {activeTab === 'companies' ? 'Dodaj Firmę' : 'Dodaj Usera'}
+                    </Button>
                 </div>
             </div>
 
-            {/* Statystyki */}
+            {/* Karty Statystyk */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Wszystkie Firmy</CardTitle>
+                        <CardTitle className="text-sm font-medium">Liczba Firm</CardTitle>
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -103,7 +122,7 @@ export default function SuperAdminPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Wszyscy Użytkownicy</CardTitle>
+                        <CardTitle className="text-sm font-medium">Liczba Użytkowników</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -112,13 +131,13 @@ export default function SuperAdminPage() {
                 </Card>
             </div>
 
-            {/* Zakładki i Szukajka */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
-                <div className="flex gap-2 bg-muted p-1 rounded-lg">
+            {/* Kontrolki (Tabs + Search) */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-b pb-4">
+                <div className="flex p-1 bg-muted rounded-lg">
                     <button
                         onClick={() => setActiveTab('companies')}
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                            activeTab === 'companies' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            activeTab === 'companies' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
                         Firmy
@@ -126,17 +145,16 @@ export default function SuperAdminPage() {
                     <button
                         onClick={() => setActiveTab('users')}
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                            activeTab === 'users' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            activeTab === 'users' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
                         Użytkownicy
                     </button>
                 </div>
-
-                <div className="relative w-full sm:w-64">
+                <div className="relative w-full sm:w-72">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Szukaj..."
+                        placeholder={activeTab === 'companies' ? "Szukaj firmy..." : "Szukaj po nazwisku lub email..."}
                         className="pl-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -144,75 +162,77 @@ export default function SuperAdminPage() {
                 </div>
             </div>
 
-            {/* Widok Firm */}
-            {activeTab === 'companies' && (
-                <Card>
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Nazwa Firmy</TableHead>
-                                    <TableHead>Data utworzenia</TableHead>
-                                    <TableHead className="text-right">Akcje</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredCompanies.map((company) => (
-                                    <TableRow key={company.id}>
-                                        <TableCell className="font-medium">{company.name || 'Bez nazwy'}</TableCell>
-                                        <TableCell>{new Date(company.created_at).toLocaleDateString('pl-PL')}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm">Edytuj</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {filteredCompanies.length === 0 && (
-                                    <TableRow><TableCell colSpan={3} className="text-center py-4">Brak wyników</TableCell></TableRow>
+            {/* Główna Tabela Danych */}
+            <Card className="flex-1 overflow-hidden">
+                <div className="h-full overflow-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {activeTab === 'companies' ? (
+                                    <>
+                                        <TableHead>Nazwa Firmy</TableHead>
+                                        <TableHead>Data Utworzenia</TableHead>
+                                        <TableHead>ID</TableHead>
+                                        <TableHead className="text-right">Akcje</TableHead>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TableHead>Użytkownik</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Rola</TableHead>
+                                        <TableHead>Firma (ID)</TableHead>
+                                        <TableHead className="text-right">Akcje</TableHead>
+                                    </>
                                 )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {/* WIDOK FIRM */}
+                            {activeTab === 'companies' && (filteredData as Company[]).map((company) => (
+                                <TableRow key={company.id}>
+                                    <TableCell className="font-medium">{company.name || <span className="text-muted-foreground italic">Bez nazwy</span>}</TableCell>
+                                    <TableCell>{new Date(company.created_at).toLocaleDateString('pl-PL')}</TableCell>
+                                    <TableCell className="font-mono text-xs text-muted-foreground">{company.id}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="sm">Edytuj</Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
 
-            {/* Widok Użytkowników */}
-            {activeTab === 'users' && (
-                <Card>
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Użytkownik</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Rola</TableHead>
-                                    <TableHead className="text-right">Akcje</TableHead>
+                            {/* WIDOK UŻYTKOWNIKÓW */}
+                            {activeTab === 'users' && (filteredData as User[]).map((user) => (
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-medium">
+                                        {user.first_name || user.last_name
+                                            ? `${user.first_name || ''} ${user.last_name || ''}`
+                                            : <span className="text-muted-foreground italic">Brak danych</span>}
+                                    </TableCell>
+                                    <TableCell>{user.email || <span className="text-red-400 text-xs">Brak email</span>}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={user.role === 'super_admin' ? 'destructive' : 'secondary'}>
+                                            {user.role || 'brak roli'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="font-mono text-xs text-muted-foreground">
+                                        {user.company_id ? user.company_id.slice(0, 8) + '...' : '-'}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="sm">Edytuj</Button>
+                                    </TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredUsers.map((user) => (
-                                    <TableRow key={user.id}>
-                                        <TableCell className="font-medium">
-                                            {user.first_name} {user.last_name}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground">
-                                            {user.email || <span className="text-red-400 text-xs">Brak (Błąd API)</span>}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary">{user.role || 'user'}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm">Edytuj</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {filteredUsers.length === 0 && (
-                                    <TableRow><TableCell colSpan={4} className="text-center py-4">Brak wyników</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
+                            ))}
+
+                            {filteredData.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        Brak wyników dla "{searchTerm}"
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </Card>
         </div>
     );
 }
