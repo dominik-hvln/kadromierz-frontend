@@ -36,17 +36,22 @@ export default function SuperAdminPage() {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            try {
-                // Pobieramy równolegle dla wydajności
-                const [companiesRes, usersRes] = await Promise.all([
-                    api.get<Company[]>('/super-admin/companies'),
-                    api.get<User[]>('/super-admin/users')
-                ]);
 
+            // 1. Pobieramy Firmy (to powinno działać)
+            try {
+                const companiesRes = await api.get<Company[]>('/super-admin/companies');
                 setCompanies(companiesRes.data);
+            } catch (error) {
+                console.error('Błąd pobierania firm:', error);
+            }
+
+            // 2. Pobieramy Userów (to może na razie rzucać błąd 500)
+            try {
+                const usersRes = await api.get<User[]>('/super-admin/users');
                 setUsers(usersRes.data);
             } catch (error) {
-                console.error('Błąd pobierania danych:', error);
+                console.error('Błąd pobierania użytkowników (czy backend jest gotowy?):', error);
+                // Nie blokujemy reszty aplikacji
             } finally {
                 setLoading(false);
             }
