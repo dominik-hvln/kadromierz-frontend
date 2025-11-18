@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FolderKanban, Users, Clock, MapPin, Activity, Settings } from 'lucide-react';
-import { cn } from '@/lib/utils'; // Importujemy cn do łączenia klas
+import { Home, FolderKanban, Users, Clock, MapPin, Activity, ShieldCheck } from 'lucide-react'; // Dodałem ShieldCheck dla admina
+import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth.store'; //
 
 // Definiujemy typ dla linku
 interface NavLink {
     href: string;
     label: string;
     icon: React.ElementType;
+    roles?: string[]; // Opcjonalna tablica ról, które mają dostęp
 }
 
 // Definiujemy nasze linki w jednym miejscu
@@ -20,20 +22,34 @@ export const navLinks: NavLink[] = [
     { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban },
     { href: '/dashboard/users', label: 'Użytkownicy', icon: Users },
     { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin },
+    // Link widoczny tylko dla Super Admina
+    {
+        href: '/dashboard/super-admin',
+        label: 'Super Admin',
+        icon: ShieldCheck,
+        roles: ['super_admin']
+    },
 ];
 
-// Definiujemy typ dla właściwości komponentu
 interface SidebarProps {
-    isMobile?: boolean; // Oznaczamy jako opcjonalny
+    isMobile?: boolean;
 }
 
 export default function Sidebar({ isMobile = false }: SidebarProps) {
     const pathname = usePathname();
+    const { user } = useAuthStore(); // Pobieramy usera ze store'a
 
-    // Wspólny JSX dla linków, aby nie powtarzać kodu
+    // Filtrujemy linki na podstawie roli użytkownika
+    const visibleLinks = navLinks.filter(link => {
+        // Jeśli link nie ma zdefiniowanych ról, jest dostępny dla wszystkich
+        if (!link.roles) return true;
+        // Jeśli user nie jest zalogowany lub nie ma wymaganej roli, ukryj link
+        return user && link.roles.includes(user.role);
+    });
+
     const renderNavLinks = () => (
         <nav className="flex-1 space-y-2 px-4">
-            {navLinks.map((link) => {
+            {visibleLinks.map((link) => {
                 const isActive = pathname === link.href;
 
                 return (
@@ -43,18 +59,17 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                         className={cn(
                             "flex items-center gap-3 rounded-[25px] px-3 py-2 transition-all",
                             isActive
-                                ? "bg-primary text-primary-foreground" // Styl aktywnego linku (czarne tło, biały tekst)
-                                : "text-muted-foreground hover:bg-muted" // Styl domyślny
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:bg-muted"
                         )}
                     >
-                        {/* Ikona w delikatnym szarym kółku (zgodnie z inspiracją) */}
                         <div className={cn(
                             "h-8 w-8 rounded-full flex items-center justify-center",
-                            isActive ? "bg-primary-foreground/20" : "bg-muted" // Lepsze tło dla ikony
+                            isActive ? "bg-primary-foreground/20" : "bg-muted"
                         )}>
                             <link.icon className={cn(
                                 "h-4 w-4",
-                                isActive ? "text-primary-foreground" : "text-primary" // Kolor ikony
+                                isActive ? "text-primary-foreground" : "text-primary"
                             )} />
                         </div>
                         <span className="font-medium">{link.label}</span>
@@ -65,7 +80,6 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
     );
 
     if (isMobile) {
-        // Wersja mobilna (dla Sheet) - bez logo na górze
         return (
             <div className="flex h-full flex-col py-6">
                 {renderNavLinks()}
@@ -73,22 +87,16 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
         );
     }
 
-    // Wersja desktopowa (stała)
     return (
-        <aside className={cn(
-            "hidden md:flex h-full w-72 flex-col",
-        )}>
+        <aside className={cn("hidden md:flex h-full w-72 flex-col")}>
             <div className="flex h-[72px] items-center px-8">
                 <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-                    {/* Możesz tu wstawić swoje logo */}
                     <span className="text-xl">TwojaAplikacja</span>
                 </Link>
             </div>
             <div className="flex-1 overflow-y-auto">
                 {renderNavLinks()}
             </div>
-            {/* Tutaj możemy dodać profil użytkownika na dole, jak w designie */}
-            {/* <div className="mt-auto p-4">...</div> */}
         </aside>
     );
 }
