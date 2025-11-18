@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Users, Plus, Search } from 'lucide-react';
+import { Building2, Users, Plus, Search, RefreshCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
-// Typy danych
+// Typy danych z obsługą brakujących pól
 interface Company {
     id: string;
     name: string | null;
@@ -18,11 +19,10 @@ interface Company {
 
 interface User {
     id: string;
-    email: string;
-    first_name: string;
-    last_name: string;
-    role: string;
-    company_id?: string; // Zakładam, że user może być przypisany do firmy
+    email?: string; // Opcjonalne, bo może nie przyjść z backendu
+    first_name?: string;
+    last_name?: string;
+    role?: string;
 }
 
 export default function SuperAdminPage() {
@@ -32,58 +32,56 @@ export default function SuperAdminPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Pobieranie danych
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            // Pobieramy dane niezależnie
+            const companiesPromise = api.get<Company[]>('/super-admin/companies')
+                .then(res => setCompanies(res.data))
+                .catch(err => console.error('Błąd firm:', err));
+
+            const usersPromise = api.get<User[]>('/super-admin/users')
+                .then(res => setUsers(res.data))
+                .catch(err => console.error('Błąd userów:', err));
+
+            await Promise.allSettled([companiesPromise, usersPromise]);
+        } catch (error) {
+            toast.error('Błąd pobierania danych');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-
-            // 1. Pobieramy Firmy (to powinno działać)
-            try {
-                const companiesRes = await api.get<Company[]>('/super-admin/companies');
-                setCompanies(companiesRes.data);
-            } catch (error) {
-                console.error('Błąd pobierania firm:', error);
-            }
-
-            // 2. Pobieramy Userów (to może na razie rzucać błąd 500)
-            try {
-                const usersRes = await api.get<User[]>('/super-admin/users');
-                setUsers(usersRes.data);
-            } catch (error) {
-                console.error('Błąd pobierania użytkowników (czy backend jest gotowy?):', error);
-                // Nie blokujemy reszty aplikacji
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchData();
     }, []);
 
-    // Filtrowanie (proste, po stronie klienta na start)
+    // ✅ BEZPIECZNE FILTROWANIE (Naprawa Twojego błędu)
     const filteredCompanies = companies.filter(c =>
-        c.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        (c.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const filteredUsers = users.filter(u =>
-        u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = users.filter(u => {
+        const search = searchTerm.toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        const lastName = (u.last_name || '').toLowerCase();
+        const firstName = (u.first_name || '').toLowerCase();
 
-    if (loading) {
-        return <div className="flex h-full items-center justify-center">Ładowanie panelu...</div>;
-    }
+        return email.includes(search) || lastName.includes(search) || firstName.includes(search);
+    });
 
     return (
-        <div className="p-8 space-y-6">
-            {/* Nagłówek */}
+        <div className="p-8 space-y-6 h-full overflow-y-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Panel Super Admina</h1>
-                    <p className="text-muted-foreground">Zarządzaj firmami i użytkownikami w całej aplikacji.</p>
+                    <p className="text-muted-foreground">Zarządzaj firmami i użytkownikami.</p>
                 </div>
                 <div className="flex gap-2">
-                    {/* Tutaj podepniemy modale później */}
+                    <Button variant="outline" size="icon" onClick={fetchData} disabled={loading}>
+                        <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
+                    {/* Placeholdery na przyszłe modale */}
                     {activeTab === 'companies' ? (
                         <Button><Plus className="mr-2 h-4 w-4" /> Dodaj Firmę</Button>
                     ) : (
@@ -92,7 +90,7 @@ export default function SuperAdminPage() {
                 </div>
             </div>
 
-            {/* Statystyki "na szybko" */}
+            {/* Statystyki */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -114,15 +112,13 @@ export default function SuperAdminPage() {
                 </Card>
             </div>
 
-            {/* Pasek zakładek i wyszukiwania */}
+            {/* Zakładki i Szukajka */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                 <div className="flex gap-2 bg-muted p-1 rounded-lg">
                     <button
                         onClick={() => setActiveTab('companies')}
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                            activeTab === 'companies'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            activeTab === 'companies' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
                         Firmy
@@ -130,9 +126,7 @@ export default function SuperAdminPage() {
                     <button
                         onClick={() => setActiveTab('users')}
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                            activeTab === 'users'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            activeTab === 'users' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
                         }`}
                     >
                         Użytkownicy
@@ -142,7 +136,7 @@ export default function SuperAdminPage() {
                 <div className="relative w-full sm:w-64">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder={activeTab === 'companies' ? "Szukaj firmy..." : "Szukaj użytkownika..."}
+                        placeholder="Szukaj..."
                         className="pl-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -150,78 +144,70 @@ export default function SuperAdminPage() {
                 </div>
             </div>
 
-            {/* Tabela Firm */}
+            {/* Widok Firm */}
             {activeTab === 'companies' && (
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Lista Firm</CardTitle>
-                        <CardDescription>Podgląd wszystkich firm zarejestrowanych w systemie.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-0">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nazwa Firmy</TableHead>
                                     <TableHead>Data utworzenia</TableHead>
-                                    <TableHead>ID</TableHead>
                                     <TableHead className="text-right">Akcje</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredCompanies.length === 0 ? (
-                                    <TableRow><TableCell colSpan={4} className="text-center py-8">Brak wyników</TableCell></TableRow>
-                                ) : filteredCompanies.map((company) => (
+                                {filteredCompanies.map((company) => (
                                     <TableRow key={company.id}>
                                         <TableCell className="font-medium">{company.name || 'Bez nazwy'}</TableCell>
                                         <TableCell>{new Date(company.created_at).toLocaleDateString('pl-PL')}</TableCell>
-                                        <TableCell className="font-mono text-xs text-muted-foreground">{company.id}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="sm">Edytuj</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {filteredCompanies.length === 0 && (
+                                    <TableRow><TableCell colSpan={3} className="text-center py-4">Brak wyników</TableCell></TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
                 </Card>
             )}
 
-            {/* Tabela Użytkowników */}
+            {/* Widok Użytkowników */}
             {activeTab === 'users' && (
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Lista Użytkowników</CardTitle>
-                        <CardDescription>Użytkownicy ze wszystkich firm.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-0">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Imię i Nazwisko</TableHead>
+                                    <TableHead>Użytkownik</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Rola</TableHead>
                                     <TableHead className="text-right">Akcje</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredUsers.length === 0 ? (
-                                    <TableRow><TableCell colSpan={4} className="text-center py-8">Brak wyników</TableCell></TableRow>
-                                ) : filteredUsers.map((user) => (
+                                {filteredUsers.map((user) => (
                                     <TableRow key={user.id}>
                                         <TableCell className="font-medium">
                                             {user.first_name} {user.last_name}
                                         </TableCell>
-                                        <TableCell>{user.email}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {user.email || <span className="text-red-400 text-xs">Brak (Błąd API)</span>}
+                                        </TableCell>
                                         <TableCell>
-                                            <Badge variant={user.role === 'super_admin' ? 'destructive' : 'secondary'}>
-                                                {user.role}
-                                            </Badge>
+                                            <Badge variant="secondary">{user.role || 'user'}</Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="sm">Edytuj</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {filteredUsers.length === 0 && (
+                                    <TableRow><TableCell colSpan={4} className="text-center py-4">Brak wyników</TableCell></TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
