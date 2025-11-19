@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api'; //
+import { api } from '@/lib/api';
 import { TemplateBuilder, TemplateField } from '@/components/reports/TemplateBuilder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { ArrowLeft, Save } from 'lucide-react';
-import { useAuthStore } from '@/store/auth.store'; //
+import { useAuthStore } from '@/store/auth.store';
+
+// Pomocniczy interfejs, żeby TypeScript wiedział, czego szukamy w obiekcie user
+interface UserWithCompany {
+    company_id?: string;
+}
 
 export default function NewTemplatePage() {
     const router = useRouter();
@@ -33,17 +38,9 @@ export default function NewTemplatePage() {
 
         setLoading(true);
         try {
-            // Backend oczekuje: name, description, companyId, fields
-            // CompanyId weźmiemy z profilu usera (zakładając, że admin ma company_id)
-            // Jeśli super-admin tworzy, trzeba by dodać wybór firmy, ale załóżmy uproszczenie dla managera/admina firmy
-
-            /* UWAGA: Jeśli jesteś zalogowany jako SuperAdmin bez przypisanej firmy w bazie (company_id: null),
-               backend może zwrócić błąd. Wtedy musielibyśmy dodać Select firmy jak przy tworzeniu usera.
-               Zakładam, że testujesz to na userze, który MA firmę, lub dodasz company_id do swojego superadmina.
-            */
-
-            // Pobieramy companyId z usera lub (tymczasowo dla testów) hardcodujemy, jeśli user go nie ma
-            const companyId = (user as any)?.company_id;
+            // ✅ POPRAWKA 1: Bezpieczne rzutowanie typu zamiast 'any'
+            // Mówimy TypeScriptowi: "Traktuj usera jako obiekt, który może mieć company_id"
+            const companyId = (user as unknown as UserWithCompany)?.company_id;
 
             if (!companyId) {
                 toast.error('Błąd: Nie znaleziono ID firmy zalogowanego użytkownika.');
@@ -58,8 +55,10 @@ export default function NewTemplatePage() {
             });
 
             toast.success('Szablon zapisany pomyślnie');
-            router.push('/dashboard/reports/templates'); // Przekierowanie do listy (którą zaraz zrobimy)
-        } catch (error: any) {
+            router.push('/dashboard/reports/templates');
+        } catch (error) {
+            // ✅ POPRAWKA 2: Usunęliśmy ': any'.
+            // TypeScript traktuje 'error' jako unknown, co pozwala na console.error
             console.error(error);
             toast.error('Nie udało się zapisać szablonu');
         } finally {
@@ -69,7 +68,6 @@ export default function NewTemplatePage() {
 
     return (
         <div className="p-6 space-y-6 max-w-5xl mx-auto">
-            {/* Nagłówek i przyciski akcji */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.back()}>
@@ -90,7 +88,6 @@ export default function NewTemplatePage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
-                {/* Lewa kolumna: Ustawienia ogólne */}
                 <div className="md:col-span-1 space-y-6">
                     <Card>
                         <CardHeader>
@@ -119,7 +116,6 @@ export default function NewTemplatePage() {
                         </CardContent>
                     </Card>
 
-                    {/* Tu w przyszłości dodamy np. ustawienia wyglądu PDF (kolor, logo) */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Wygląd PDF</CardTitle>
@@ -133,7 +129,6 @@ export default function NewTemplatePage() {
                     </Card>
                 </div>
 
-                {/* Prawa kolumna: Builder pól */}
                 <div className="md:col-span-2">
                     <Card className="min-h-[600px]">
                         <CardHeader>
@@ -143,7 +138,6 @@ export default function NewTemplatePage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {/* Nasz komponent Drag & Drop */}
                             <TemplateBuilder fields={fields} setFields={setFields} />
                         </CardContent>
                     </Card>
