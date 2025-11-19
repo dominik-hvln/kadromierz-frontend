@@ -19,7 +19,7 @@ export interface TemplateField {
     required: boolean;
 }
 
-// Komponent pojedynczego pola (bez zmian)
+// Komponent pojedynczego pola
 function SortableField({ field, onRemove, onUpdate }: { field: TemplateField, onRemove: (id: string) => void, onUpdate: (id: string, field: Partial<TemplateField>) => void }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
 
@@ -143,8 +143,8 @@ export function TemplateBuilder({ fields, setFields }: TemplateBuilderProps) {
 
                 {fields.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground">
-                        {/* ✅ POPRAWKA: Używamy &quot; zamiast " */}
-                        Kliknij &quot;Dodaj Pole&quot;, aby zacząć budować szablon.
+                        {/* ✅ POPRAWKA: Używamy zapisu {' "Tekst" '} - to w 100% bezpieczne */}
+                        Kliknij {'"Dodaj Pole"'}, aby zacząć budować szablon.
                     </div>
                 )}
             </div>
