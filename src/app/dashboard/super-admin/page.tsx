@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Building2, Users, Search, RefreshCcw, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { CreateCompanyDialog } from '@/components/super-admin/CreateCompanyDialog';
+import { CreateUserDialog } from '@/components/super-admin/CreateUserDialog';
 
 interface Company {
     id: string;
@@ -34,6 +35,7 @@ export default function SuperAdminPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isCreateCompanyOpen, setIsCreateCompanyOpen] = useState(false);
+    const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
 
     // Funkcja pobierająca dane
     const fetchData = async () => {
@@ -100,7 +102,7 @@ export default function SuperAdminPage() {
                     <Button variant="outline" size="icon" onClick={fetchData} disabled={loading}>
                         <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button onClick={() => setIsCreateCompanyOpen(true)}> {}
+                    <Button onClick={() => activeTab === 'companies' ? setIsCreateCompanyOpen(true) : setIsCreateUserOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
                         {activeTab === 'companies' ? 'Dodaj Firmę' : 'Dodaj Usera'}
                     </Button>
@@ -235,6 +237,11 @@ export default function SuperAdminPage() {
             <CreateCompanyDialog
                 open={isCreateCompanyOpen}
                 onOpenChange={setIsCreateCompanyOpen}
+                onSuccess={fetchData}
+            />
+            <CreateUserDialog
+                open={isCreateUserOpen}
+                onOpenChange={setIsCreateUserOpen}
                 onSuccess={fetchData}
             />
         </div>
