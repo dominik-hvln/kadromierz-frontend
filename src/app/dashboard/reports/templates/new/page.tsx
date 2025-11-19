@@ -1,152 +1,153 @@
 'use client';
 
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api'; //
+import { TemplateBuilder, TemplateField } from '@/components/reports/TemplateBuilder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { GripVertical, Trash2, Plus } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { ArrowLeft, Save } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store'; //
 
-// Typy pól
-export type FieldType = 'text' | 'textarea' | 'number' | 'checkbox' | 'photo' | 'section' | 'signature';
+export default function NewTemplatePage() {
+    const router = useRouter();
+    const { user } = useAuthStore();
 
-export interface TemplateField {
-    id: string;
-    type: FieldType;
-    label: string;
-    required: boolean;
-}
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [fields, setFields] = useState<TemplateField[]>([]);
+    const [loading, setLoading] = useState(false);
 
-// Komponent pojedynczego pola
-function SortableField({ field, onRemove, onUpdate }: { field: TemplateField, onRemove: (id: string) => void, onUpdate: (id: string, field: Partial<TemplateField>) => void }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
+    const handleSave = async () => {
+        if (!name.trim()) {
+            toast.error('Podaj nazwę szablonu');
+            return;
+        }
+        if (fields.length === 0) {
+            toast.error('Dodaj przynajmniej jedno pole do szablonu');
+            return;
+        }
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
+        setLoading(true);
+        try {
+            // Backend oczekuje: name, description, companyId, fields
+            // CompanyId weźmiemy z profilu usera (zakładając, że admin ma company_id)
+            // Jeśli super-admin tworzy, trzeba by dodać wybór firmy, ale załóżmy uproszczenie dla managera/admina firmy
 
-    return (
-        <div ref={setNodeRef} style={style} className="flex items-center gap-4 bg-card border rounded-lg p-4 mb-3 shadow-sm">
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
-                <GripVertical className="h-5 w-5" />
-            </div>
+            /* UWAGA: Jeśli jesteś zalogowany jako SuperAdmin bez przypisanej firmy w bazie (company_id: null),
+               backend może zwrócić błąd. Wtedy musielibyśmy dodać Select firmy jak przy tworzeniu usera.
+               Zakładam, że testujesz to na userze, który MA firmę, lub dodasz company_id do swojego superadmina.
+            */
 
-            <div className="w-[140px]">
-                <Select
-                    value={field.type}
-                    onValueChange={(val) => onUpdate(field.id, { type: val as FieldType })}
-                >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="text">Tekst krótki</SelectItem>
-                        <SelectItem value="textarea">Opis długi</SelectItem>
-                        <SelectItem value="number">Liczba</SelectItem>
-                        <SelectItem value="checkbox">Checkbox</SelectItem>
-                        <SelectItem value="photo">Zdjęcie</SelectItem>
-                        <SelectItem value="signature">Podpis</SelectItem>
-                        <SelectItem value="section">---- Sekcja ----</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+            // Pobieramy companyId z usera lub (tymczasowo dla testów) hardcodujemy, jeśli user go nie ma
+            const companyId = (user as any)?.company_id;
 
-            <div className="flex-1">
-                <Input
-                    value={field.label}
-                    onChange={(e) => onUpdate(field.id, { label: e.target.value })}
-                    placeholder="Nazwa pola (np. Zdjęcie usterki)"
-                />
-            </div>
+            if (!companyId) {
+                toast.error('Błąd: Nie znaleziono ID firmy zalogowanego użytkownika.');
+                return;
+            }
 
-            <div className="flex items-center gap-2">
-                <Label htmlFor={`req-${field.id}`} className="text-sm text-muted-foreground whitespace-nowrap">
-                    Wymagane?
-                </Label>
-                <input
-                    type="checkbox"
-                    id={`req-${field.id}`}
-                    checked={field.required}
-                    onChange={(e) => onUpdate(field.id, { required: e.target.checked })}
-                    className="h-4 w-4"
-                />
-            </div>
+            await api.post('/report-templates', {
+                name,
+                description,
+                companyId,
+                fields
+            });
 
-            <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => onRemove(field.id)}>
-                <Trash2 className="h-4 w-4" />
-            </Button>
-        </div>
-    );
-}
-
-interface TemplateBuilderProps {
-    fields: TemplateField[];
-    setFields: (fields: TemplateField[]) => void;
-}
-
-export function TemplateBuilder({ fields, setFields }: TemplateBuilderProps) {
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-    );
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (active.id !== over?.id) {
-            const oldIndex = fields.findIndex((i) => i.id === active.id);
-            const newIndex = fields.findIndex((i) => i.id === over?.id);
-            setFields(arrayMove(fields, oldIndex, newIndex));
+            toast.success('Szablon zapisany pomyślnie');
+            router.push('/dashboard/reports/templates'); // Przekierowanie do listy (którą zaraz zrobimy)
+        } catch (error: any) {
+            console.error(error);
+            toast.error('Nie udało się zapisać szablonu');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const addField = () => {
-        const newField: TemplateField = {
-            id: `field_${Date.now()}`,
-            type: 'text',
-            label: '',
-            required: false,
-        };
-        setFields([...fields, newField]);
-    };
-
-    const removeField = (id: string) => {
-        setFields(fields.filter(f => f.id !== id));
-    };
-
-    const updateField = (id: string, updates: Partial<TemplateField>) => {
-        setFields(fields.map(f => f.id === id ? { ...f, ...updates } : f));
-    };
-
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Pola Raportu</h3>
-                <Button onClick={addField} variant="outline" size="sm">
-                    <Plus className="mr-2 h-4 w-4" /> Dodaj Pole
-                </Button>
+        <div className="p-6 space-y-6 max-w-5xl mx-auto">
+            {/* Nagłówek i przyciski akcji */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Nowy Szablon Raportu</h1>
+                        <p className="text-muted-foreground">Zdefiniuj strukturę raportu dla swoich pracowników.</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => router.back()}>Anuluj</Button>
+                    <Button onClick={handleSave} disabled={loading}>
+                        <Save className="mr-2 h-4 w-4" />
+                        {loading ? 'Zapisywanie...' : 'Zapisz Szablon'}
+                    </Button>
+                </div>
             </div>
 
-            <div className="bg-muted/30 rounded-xl p-4 border border-dashed min-h-[200px]">
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={fields} strategy={verticalListSortingStrategy}>
-                        {fields.map((field) => (
-                            <SortableField
-                                key={field.id}
-                                field={field}
-                                onRemove={removeField}
-                                onUpdate={updateField}
-                            />
-                        ))}
-                    </SortableContext>
-                </DndContext>
+            <div className="grid gap-6 md:grid-cols-3">
+                {/* Lewa kolumna: Ustawienia ogólne */}
+                <div className="md:col-span-1 space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Informacje</CardTitle>
+                            <CardDescription>Podstawowe dane szablonu.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Nazwa szablonu <span className="text-red-500">*</span></Label>
+                                <Input
+                                    id="name"
+                                    placeholder="np. Raport Serwisowy Klimatyzacji"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="desc">Opis (opcjonalnie)</Label>
+                                <Input
+                                    id="desc"
+                                    placeholder="Krótki opis przeznaczenia"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                {fields.length === 0 && (
-                    <div className="text-center py-10 text-muted-foreground">
-                        {/* ✅ Rozwiązanie pancerne: Traktujemy to jako JS string w klamrach */}
-                        {'Kliknij "Dodaj Pole", aby zacząć budować szablon.'}
-                    </div>
-                )}
+                    {/* Tu w przyszłości dodamy np. ustawienia wyglądu PDF (kolor, logo) */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Wygląd PDF</CardTitle>
+                            <CardDescription>Opcje generowania (wkrótce).</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-sm text-muted-foreground">
+                                Opcje nagłówka, stopki i tabel będą dostępne w kolejnym kroku.
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Prawa kolumna: Builder pól */}
+                <div className="md:col-span-2">
+                    <Card className="min-h-[600px]">
+                        <CardHeader>
+                            <CardTitle>Konstruktor Formularza</CardTitle>
+                            <CardDescription>
+                                Przeciągaj elementy, aby ustalić kolejność w raporcie.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {/* Nasz komponent Drag & Drop */}
+                            <TemplateBuilder fields={fields} setFields={setFields} />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
     );

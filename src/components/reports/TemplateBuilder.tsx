@@ -91,13 +91,11 @@ export function TemplateBuilder({ fields, setFields }: TemplateBuilderProps) {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    // ✅ POPRAWKA: Obliczamy nowy stan bezpośrednio, bez funkcji callback
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (active.id !== over?.id) {
             const oldIndex = fields.findIndex((i) => i.id === active.id);
             const newIndex = fields.findIndex((i) => i.id === over?.id);
-            // arrayMove zwraca nową tablicę, którą przekazujemy prosto do settera
             setFields(arrayMove(fields, oldIndex, newIndex));
         }
     };
@@ -145,7 +143,8 @@ export function TemplateBuilder({ fields, setFields }: TemplateBuilderProps) {
 
                 {fields.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground">
-                        Kliknij "Dodaj Pole", aby zacząć budować szablon.
+                        {/* ✅ POPRAWKA: Używamy &quot; zamiast " */}
+                        Kliknij &quot;Dodaj Pole&quot;, aby zacząć budować szablon.
                     </div>
                 )}
             </div>
