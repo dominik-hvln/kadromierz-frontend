@@ -7,20 +7,25 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox'; // Jeśli nie masz tego komponentu UI, użyj zwykłego input type="checkbox"
+import { Checkbox } from '@/components/ui/checkbox'; // ✅ Teraz będziemy tego używać
 import { Camera, PenTool } from 'lucide-react';
+
+// ✅ Definiujemy typ możliwych odpowiedzi, zamiast 'any'
+type AnswerValue = string | number | boolean;
 
 interface ReportRendererProps {
     fields: TemplateField[];
-    onSubmit: (answers: Record<string, any>) => void;
+    // ✅ Zmieniamy 'any' na konkretny typ
+    onSubmit: (answers: Record<string, AnswerValue>) => void;
     isSubmitting: boolean;
 }
 
 export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendererProps) {
-    // Stan trzymający odpowiedzi: { "field_123": "Odpowiedź" }
-    const [answers, setAnswers] = useState<Record<string, any>>({});
+    // ✅ Zmieniamy 'any' na konkretny typ
+    const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
 
-    const handleChange = (fieldId: string, value: any) => {
+    // ✅ Zmieniamy 'any' na konkretny typ
+    const handleChange = (fieldId: string, value: AnswerValue) => {
         setAnswers((prev) => ({
             ...prev,
             [fieldId]: value,
@@ -35,7 +40,6 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {fields.map((field) => {
-                // Obsługa sekcji (nagłówków)
                 if (field.type === 'section') {
                     return (
                         <div key={field.id} className="pt-4 pb-2 border-b">
@@ -51,12 +55,11 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                             {field.required && <span className="text-destructive ml-1">*</span>}
                         </Label>
 
-                        {/* Renderowanie odpowiedniego pola */}
                         {field.type === 'text' && (
                             <Input
                                 id={field.id}
                                 required={field.required}
-                                value={answers[field.id] || ''}
+                                value={(answers[field.id] as string) || ''}
                                 onChange={(e) => handleChange(field.id, e.target.value)}
                                 placeholder="Wpisz tekst..."
                             />
@@ -66,7 +69,7 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                             <Textarea
                                 id={field.id}
                                 required={field.required}
-                                value={answers[field.id] || ''}
+                                value={(answers[field.id] as string) || ''}
                                 onChange={(e) => handleChange(field.id, e.target.value)}
                                 placeholder="Wpisz dłuższy opis..."
                                 className="min-h-[100px]"
@@ -78,26 +81,30 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                 id={field.id}
                                 type="number"
                                 required={field.required}
-                                value={answers[field.id] || ''}
+                                value={(answers[field.id] as string) || ''}
                                 onChange={(e) => handleChange(field.id, e.target.value)}
                                 placeholder="0"
                             />
                         )}
 
+                        {/* ✅ POPRAWKA: Używamy komponentu Checkbox zamiast <input> */}
                         {field.type === 'checkbox' && (
                             <div className="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
+                                <Checkbox
                                     id={field.id}
-                                    className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
                                     checked={!!answers[field.id]}
-                                    onChange={(e) => handleChange(field.id, e.target.checked)}
+                                    // Shadcn Checkbox używa onCheckedChange, a nie onChange
+                                    onCheckedChange={(checked) => handleChange(field.id, checked === true)}
                                 />
-                                <span className="text-sm text-muted-foreground">Zaznacz jeśli dotyczy</span>
+                                <Label
+                                    htmlFor={field.id}
+                                    className="text-sm text-muted-foreground font-normal cursor-pointer"
+                                >
+                                    Zaznacz jeśli dotyczy
+                                </Label>
                             </div>
                         )}
 
-                        {/* Placeholder dla Zdjęcia - w przyszłości upload plików */}
                         {field.type === 'photo' && (
                             <Card className="border-dashed">
                                 <CardContent className="flex flex-col items-center justify-center py-6 text-muted-foreground">
@@ -113,7 +120,6 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                             </Card>
                         )}
 
-                        {/* Placeholder dla Podpisu */}
                         {field.type === 'signature' && (
                             <Card className="bg-muted/20">
                                 <CardContent className="py-6">
