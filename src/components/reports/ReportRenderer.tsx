@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox'; // ✅ Teraz będziemy tego używać
+import { Checkbox } from '@/components/ui/checkbox';
 import { Camera, PenTool } from 'lucide-react';
 
 // ✅ Definiujemy typ możliwych odpowiedzi, zamiast 'any'

@@ -20,23 +20,23 @@ interface ReportTemplate {
     fields: TemplateField[];
 }
 
-// Pomocniczy interfejs dla usera
 interface UserWithCompany {
     company_id?: string;
 }
+
+// ✅ Definiujemy typ wartości odpowiedzi (taki sam jak w ReportRenderer)
+type AnswerValue = string | number | boolean;
 
 export default function NewReportPage() {
     const router = useRouter();
     const { user } = useAuthStore();
 
-    // Stan
     const [templates, setTemplates] = useState<ReportTemplate[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [reportTitle, setReportTitle] = useState('');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
-    // 1. Pobierz dostępne szablony przy wejściu
     useEffect(() => {
         const fetchTemplates = async () => {
             const companyId = (user as unknown as UserWithCompany)?.company_id;
@@ -56,11 +56,10 @@ export default function NewReportPage() {
         fetchTemplates();
     }, [user]);
 
-    // Wybrany szablon (obiekt)
     const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
-    // 2. Obsługa wysłania raportu
-    const handleReportSubmit = async (answers: Record<string, any>) => {
+    // ✅ POPRAWKA: Używamy konkretnego typu AnswerValue zamiast 'any'
+    const handleReportSubmit = async (answers: Record<string, AnswerValue>) => {
         if (!reportTitle.trim()) {
             toast.error('Podaj tytuł raportu (np. nazwa klienta)');
             return;
@@ -78,7 +77,6 @@ export default function NewReportPage() {
             });
 
             toast.success('Raport został wysłany!');
-            // Tu w przyszłości przekierujemy do podglądu PDF lub listy raportów
             router.push('/dashboard/reports');
         } catch (error) {
             console.error(error);
@@ -94,7 +92,6 @@ export default function NewReportPage() {
 
     return (
         <div className="p-6 max-w-3xl mx-auto space-y-6">
-            {/* Nagłówek */}
             <div className="flex items-center gap-4 mb-6">
                 <Button variant="ghost" size="icon" onClick={() => router.back()}>
                     <ArrowLeft className="h-5 w-5" />
@@ -105,7 +102,6 @@ export default function NewReportPage() {
                 </div>
             </div>
 
-            {/* Krok 1: Wybór Szablonu i Tytułu */}
             <Card>
                 <CardHeader>
                     <CardTitle>Dane podstawowe</CardTitle>
@@ -138,7 +134,6 @@ export default function NewReportPage() {
                 </CardContent>
             </Card>
 
-            {/* Krok 2: Renderowanie Formularza */}
             {selectedTemplate && (
                 <Card className="border-primary/20 shadow-md">
                     <CardHeader className="bg-muted/30 pb-4">
