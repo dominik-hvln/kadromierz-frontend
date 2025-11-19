@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { AxiosError } from 'axios'; // ✅ 1. Importujemy typ błędu
 
 interface Company {
     id: string;
@@ -24,7 +25,6 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
     const [loading, setLoading] = useState(false);
     const [companies, setCompanies] = useState<Company[]>([]);
 
-    // Stan formularza
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -34,7 +34,6 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
         companyId: '',
     });
 
-    // Pobieramy firmy przy otwarciu modala
     useEffect(() => {
         if (open) {
             api.get('/super-admin/companies')
@@ -52,11 +51,13 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
             toast.success('Użytkownik został utworzony');
             onSuccess();
             onOpenChange(false);
-            // Reset formularza
             setFormData({ email: '', password: '', firstName: '', lastName: '', role: 'employee', companyId: '' });
-        } catch (error: any) {
-            console.error(error);
-            toast.error(error.response?.data?.message || 'Błąd tworzenia użytkownika');
+        } catch (error) {
+            // ✅ 2. Bezpieczna obsługa błędu bez 'any'
+            const err = error as AxiosError<{ message: string }>;
+            console.error(err);
+            const message = err.response?.data?.message || 'Błąd tworzenia użytkownika';
+            toast.error(message);
         } finally {
             setLoading(false);
         }
@@ -132,7 +133,7 @@ export function CreateUserDialog({ open, onOpenChange, onSuccess }: CreateUserDi
                             <Select
                                 value={formData.companyId}
                                 onValueChange={(val) => setFormData({...formData, companyId: val})}
-                                disabled={formData.role === 'super_admin'} // Super Admin może nie mieć firmy
+                                disabled={formData.role === 'super_admin'}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Wybierz firmę" />
