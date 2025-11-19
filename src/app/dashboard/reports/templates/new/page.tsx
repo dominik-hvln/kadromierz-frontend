@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unescaped-entities */
 'use client';
 
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -144,7 +143,8 @@ export function TemplateBuilder({ fields, setFields }: TemplateBuilderProps) {
 
                 {fields.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground">
-                        Kliknij "Dodaj Pole", aby zacząć budować szablon.
+                        {/* Usunąłem cudzysłowy całkowicie, żeby nie było problemu */}
+                        Kliknij przycisk Dodaj Pole, aby zacząć budować szablon.
                     </div>
                 )}
             </div>
