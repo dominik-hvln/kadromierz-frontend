@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Building2, Users, Search, RefreshCcw, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { CreateCompanyDialog } from '@/components/super-admin/CreateCompanyDialog';
 
-// ✅ Dokładne typy zgodne z Twoją bazą
 interface Company {
     id: string;
     name: string | null;
@@ -33,6 +33,7 @@ export default function SuperAdminPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCreateCompanyOpen, setIsCreateCompanyOpen] = useState(false);
 
     // Funkcja pobierająca dane
     const fetchData = async () => {
@@ -99,7 +100,7 @@ export default function SuperAdminPage() {
                     <Button variant="outline" size="icon" onClick={fetchData} disabled={loading}>
                         <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button>
+                    <Button onClick={() => setIsCreateCompanyOpen(true)}> {}
                         <Plus className="mr-2 h-4 w-4" />
                         {activeTab === 'companies' ? 'Dodaj Firmę' : 'Dodaj Usera'}
                     </Button>
@@ -231,6 +232,11 @@ export default function SuperAdminPage() {
                     </Table>
                 </div>
             </Card>
+            <CreateCompanyDialog
+                open={isCreateCompanyOpen}
+                onOpenChange={setIsCreateCompanyOpen}
+                onSuccess={fetchData}
+            />
         </div>
     );
 }
