@@ -2,27 +2,40 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FolderKanban, Users, Clock, MapPin, Activity, ShieldCheck } from 'lucide-react'; // Dodałem ShieldCheck dla admina
+import {
+    Home,
+    FolderKanban,
+    Users,
+    Clock,
+    MapPin,
+    Activity,
+    FileText, // ✅ Ikona dla Raportów
+    ShieldCheck // ✅ Ikona dla Super Admina
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/store/auth.store'; //
+import { useAuthStore } from '@/store/auth.store'; // ✅ Potrzebne do sprawdzania roli
 
-// Definiujemy typ dla linku
+// Rozszerzamy typ linku o opcjonalne role
 interface NavLink {
     href: string;
     label: string;
     icon: React.ElementType;
-    roles?: string[]; // Opcjonalna tablica ról, które mają dostęp
+    roles?: string[]; // Tablica ról, które widzą ten link (brak = wszyscy)
 }
 
-// Definiujemy nasze linki w jednym miejscu
 export const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Panel Główny', icon: Home },
     { href: '/dashboard/activity', label: 'Aktywność', icon: Activity },
     { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock },
     { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban },
+
+    // ✅ NOWY LINK: Raporty (Dostępny dla wszystkich lub np. bez pracowników)
+    { href: '/dashboard/reports', label: 'Raporty', icon: FileText },
+
     { href: '/dashboard/users', label: 'Użytkownicy', icon: Users },
     { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin },
-    // Link widoczny tylko dla Super Admina
+
+    // ✅ NOWY LINK: Super Admin (Tylko dla super_admin)
     {
         href: '/dashboard/super-admin',
         label: 'Super Admin',
@@ -37,20 +50,23 @@ interface SidebarProps {
 
 export default function Sidebar({ isMobile = false }: SidebarProps) {
     const pathname = usePathname();
-    const { user } = useAuthStore(); // Pobieramy usera ze store'a
+    const { user } = useAuthStore(); // Pobieramy usera ze stanu
 
-    // Filtrujemy linki na podstawie roli użytkownika
+    // ✅ Filtrujemy linki na podstawie roli zalogowanego użytkownika
     const visibleLinks = navLinks.filter(link => {
-        // Jeśli link nie ma zdefiniowanych ról, jest dostępny dla wszystkich
+        // Jeśli link nie ma wymagań co do roli, pokazujemy go każdemu
         if (!link.roles) return true;
-        // Jeśli user nie jest zalogowany lub nie ma wymaganej roli, ukryj link
-        return user && link.roles.includes(user.role);
+        // Jeśli link wymaga roli, a user nie jest zalogowany lub nie ma roli, ukrywamy
+        if (!user || !user.role) return false;
+        // Sprawdzamy czy rola usera jest na liście dozwolonych
+        return link.roles.includes(user.role);
     });
 
     const renderNavLinks = () => (
         <nav className="flex-1 space-y-2 px-4">
             {visibleLinks.map((link) => {
-                const isActive = pathname === link.href;
+                // Sprawdzamy czy link jest aktywny (także dla podstron, np. /reports/new)
+                const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
 
                 return (
                     <Link
