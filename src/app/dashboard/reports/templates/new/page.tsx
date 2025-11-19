@@ -143,8 +143,8 @@ export function TemplateBuilder({ fields, setFields }: TemplateBuilderProps) {
 
                 {fields.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground">
-                        {/* Usunąłem cudzysłowy całkowicie, żeby nie było problemu */}
-                        Kliknij przycisk Dodaj Pole, aby zacząć budować szablon.
+                        {/* ✅ Rozwiązanie pancerne: Traktujemy to jako JS string w klamrach */}
+                        {'Kliknij "Dodaj Pole", aby zacząć budować szablon.'}
                     </div>
                 )}
             </div>
