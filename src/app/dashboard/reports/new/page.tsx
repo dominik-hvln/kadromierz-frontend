@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { FileText, ArrowLeft } from 'lucide-react';
+import { FileText, ArrowLeft, Mail } from 'lucide-react';
 
 interface ReportTemplate {
     id: string;
@@ -24,7 +24,7 @@ interface UserWithCompany {
     company_id?: string;
 }
 
-// ✅ Definiujemy typ wartości odpowiedzi (taki sam jak w ReportRenderer)
+// Typ wartości odpowiedzi
 type AnswerValue = string | number | boolean;
 
 export default function NewReportPage() {
@@ -34,6 +34,7 @@ export default function NewReportPage() {
     const [templates, setTemplates] = useState<ReportTemplate[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [reportTitle, setReportTitle] = useState('');
+    const [clientEmail, setClientEmail] = useState(''); // ✅ Nowy stan na email
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
@@ -58,7 +59,6 @@ export default function NewReportPage() {
 
     const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
-    // ✅ POPRAWKA: Używamy konkretnego typu AnswerValue zamiast 'any'
     const handleReportSubmit = async (answers: Record<string, AnswerValue>) => {
         if (!reportTitle.trim()) {
             toast.error('Podaj tytuł raportu (np. nazwa klienta)');
@@ -73,6 +73,7 @@ export default function NewReportPage() {
                 templateId: selectedTemplateId,
                 companyId: companyId,
                 title: reportTitle,
+                clientEmail: clientEmail || null, // ✅ Wysyłamy email do backendu
                 answers: answers,
             });
 
@@ -122,13 +123,32 @@ export default function NewReportPage() {
                     </div>
 
                     {selectedTemplate && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                            <Label>Tytuł Raportu / Nazwa Klienta</Label>
-                            <Input
-                                placeholder="np. Serwis u Jana Kowalskiego"
-                                value={reportTitle}
-                                onChange={(e) => setReportTitle(e.target.value)}
-                            />
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="space-y-2">
+                                <Label>Tytuł Raportu / Nazwa Klienta</Label>
+                                <Input
+                                    placeholder="np. Serwis u Jana Kowalskiego"
+                                    value={reportTitle}
+                                    onChange={(e) => setReportTitle(e.target.value)}
+                                />
+                            </div>
+
+                            {/* ✅ NOWE POLE: Email Klienta */}
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2">
+                                    <Mail className="h-4 w-4" />
+                                    Email Klienta (opcjonalnie)
+                                </Label>
+                                <Input
+                                    type="email"
+                                    placeholder="klient@firma.pl"
+                                    value={clientEmail}
+                                    onChange={(e) => setClientEmail(e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Jeśli podasz email, wyślemy na niego wygenerowany plik PDF.
+                                </p>
+                            </div>
                         </div>
                     )}
                 </CardContent>
