@@ -25,6 +25,8 @@ export default function NewTemplatePage() {
     const [description, setDescription] = useState('');
     const [fields, setFields] = useState<TemplateField[]>([]);
     const [loading, setLoading] = useState(false);
+    const [primaryColor, setPrimaryColor] = useState('#0f172a'); // Domyślny granat
+    const [headerText, setHeaderText] = useState('');
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -51,7 +53,8 @@ export default function NewTemplatePage() {
                 name,
                 description,
                 companyId,
-                fields
+                fields,
+                style: { primaryColor, headerText }
             });
 
             toast.success('Szablon zapisany pomyślnie');
@@ -119,11 +122,28 @@ export default function NewTemplatePage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Wygląd PDF</CardTitle>
-                            <CardDescription>Opcje generowania (wkrótce).</CardDescription>
+                            <CardDescription>Spersonalizuj wydruk.</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-sm text-muted-foreground">
-                                Opcje nagłówka, stopki i tabel będą dostępne w kolejnym kroku.
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Kolor przewodni</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="color"
+                                        className="w-12 h-10 p-1 cursor-pointer"
+                                        value={primaryColor}
+                                        onChange={(e) => setPrimaryColor(e.target.value)}
+                                    />
+                                    <span className="text-sm text-muted-foreground">{primaryColor}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Nagłówek dokumentu</Label>
+                                <Input
+                                    placeholder="np. Protokół Serwisowy"
+                                    value={headerText}
+                                    onChange={(e) => setHeaderText(e.target.value)}
+                                />
                             </div>
                         </CardContent>
                     </Card>
