@@ -10,14 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, FileText, Calendar, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+// ✅ 1. Importujemy typ pola, który zdefiniowaliśmy wcześniej
+import { TemplateField } from '@/components/reports/TemplateBuilder';
 
-// Interfejs zgodny z Twoją bazą danych
+// ✅ 2. Używamy tego typu w interfejsie
 interface ReportTemplate {
     id: string;
     name: string;
     description: string | null;
     created_at: string;
-    fields: any[]; // JSONB z bazy
+    fields: TemplateField[]; // Zamiast any[]
 }
 
 // Pomocniczy typ dla usera
@@ -32,18 +34,15 @@ export default function TemplatesListPage() {
 
     useEffect(() => {
         const fetchTemplates = async () => {
-            // 1. Sprawdzamy company_id
+            // Rzutowanie typu dla bezpieczeństwa
             const companyId = (user as unknown as UserWithCompany)?.company_id;
 
             if (!companyId) {
-                // Jeśli testujesz super-adminem bez firmy, nic nie pobierze.
-                // W produkcji user zawsze ma firmę.
                 setLoading(false);
                 return;
             }
 
             try {
-                // 2. Pobieramy szablony dla danej firmy
                 const response = await api.get<ReportTemplate[]>(`/report-templates/company/${companyId}`);
                 setTemplates(response.data);
             } catch (error) {
@@ -128,7 +127,6 @@ export default function TemplatesListPage() {
                                             <Button variant="ghost" size="icon">
                                                 <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                             </Button>
-                                            {/* Usuwanie dodamy później */}
                                             <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
