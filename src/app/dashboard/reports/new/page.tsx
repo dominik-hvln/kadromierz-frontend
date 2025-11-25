@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
-import { ReportRenderer } from '@/components/reports/ReportRenderer';
+// ✅ IMPORTUJEMY AnswerValue, żeby typy były zgodne
+import { ReportRenderer, AnswerValue } from '@/components/reports/ReportRenderer';
 import { TemplateField } from '@/components/reports/TemplateBuilder';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,9 +25,6 @@ interface UserWithCompany {
     company_id?: string;
 }
 
-// Typ wartości odpowiedzi
-type AnswerValue = string | number | boolean;
-
 export default function NewReportPage() {
     const router = useRouter();
     const { user } = useAuthStore();
@@ -34,7 +32,7 @@ export default function NewReportPage() {
     const [templates, setTemplates] = useState<ReportTemplate[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
     const [reportTitle, setReportTitle] = useState('');
-    const [clientEmail, setClientEmail] = useState(''); // ✅ Nowy stan na email
+    const [clientEmail, setClientEmail] = useState('');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
@@ -59,6 +57,7 @@ export default function NewReportPage() {
 
     const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
+    // Używamy zaimportowanego typu AnswerValue
     const handleReportSubmit = async (answers: Record<string, AnswerValue>) => {
         if (!reportTitle.trim()) {
             toast.error('Podaj tytuł raportu (np. nazwa klienta)');
@@ -73,7 +72,7 @@ export default function NewReportPage() {
                 templateId: selectedTemplateId,
                 companyId: companyId,
                 title: reportTitle,
-                clientEmail: clientEmail || null, // ✅ Wysyłamy email do backendu
+                clientEmail: clientEmail || null,
                 answers: answers,
             });
 
@@ -133,7 +132,6 @@ export default function NewReportPage() {
                                 />
                             </div>
 
-                            {/* ✅ NOWE POLE: Email Klienta */}
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-2">
                                     <Mail className="h-4 w-4" />

@@ -11,11 +11,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Camera, PenTool, Plus, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-// ✅ Definiujemy konkretny typ dla wiersza tabeli
-type TableRowData = Record<string, string>;
-
-// ✅ Zmieniamy any[] na konkretny typ tablicy obiektów
-type AnswerValue = string | number | boolean | TableRowData[];
+// ✅ EXPORTUJEMY TYPY, aby inne pliki (np. page.tsx) mogły ich używać
+export type TableRowData = Record<string, string>;
+export type AnswerValue = string | number | boolean | TableRowData[];
 
 interface ReportRendererProps {
     fields: TemplateField[];
@@ -32,28 +30,20 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
 
     // --- LOGIKA TABELI ---
     const addTableRow = (fieldId: string, columns: string[]) => {
-        // ✅ Bezpieczne rzutowanie na konkretny typ
         const currentRows = (answers[fieldId] as TableRowData[]) || [];
-
-        // Tworzymy pusty wiersz z kluczami odpowiadającymi nazwom kolumn
         const newRow: TableRowData = columns.reduce((acc, col) => ({ ...acc, [col]: '' }), {});
-
         handleChange(fieldId, [...currentRows, newRow]);
     };
 
     const removeTableRow = (fieldId: string, index: number) => {
-        // ✅ Bezpieczne rzutowanie
         const currentRows = (answers[fieldId] as TableRowData[]) || [];
         const newRows = currentRows.filter((_, i) => i !== index);
         handleChange(fieldId, newRows);
     };
 
     const updateTableRow = (fieldId: string, index: number, colName: string, val: string) => {
-        // ✅ Bezpieczne rzutowanie
         const currentRows = [...((answers[fieldId] as TableRowData[]) || [])];
-
         if (!currentRows[index]) return;
-
         currentRows[index] = { ...currentRows[index], [colName]: val };
         handleChange(fieldId, currentRows);
     };
@@ -66,7 +56,6 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {fields.map((field) => {
-                // Sekcja
                 if (field.type === 'section') {
                     return (
                         <div key={field.id} className="pt-4 pb-2 border-b">
@@ -75,10 +64,8 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                     );
                 }
 
-                // Tabela
                 if (field.type === 'table') {
                     const columns = field.columns || ['Kolumna 1'];
-                    // ✅ Bezpieczne rzutowanie przy odczycie
                     const rows = (answers[field.id] as TableRowData[]) || [];
 
                     return (
@@ -130,7 +117,6 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                     );
                 }
 
-                // Pozostałe pola
                 return (
                     <div key={field.id} className="space-y-2">
                         <Label htmlFor={field.id}>
