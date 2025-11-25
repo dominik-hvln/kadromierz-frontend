@@ -11,7 +11,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Camera, PenTool, Plus, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-type AnswerValue = string | number | boolean | any[];
+// ✅ Definiujemy konkretny typ dla wiersza tabeli
+type TableRowData = Record<string, string>;
+
+// ✅ Zmieniamy any[] na konkretny typ tablicy obiektów
+type AnswerValue = string | number | boolean | TableRowData[];
 
 interface ReportRendererProps {
     fields: TemplateField[];
@@ -28,21 +32,28 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
 
     // --- LOGIKA TABELI ---
     const addTableRow = (fieldId: string, columns: string[]) => {
-        const currentRows = (answers[fieldId] as any[]) || [];
+        // ✅ Bezpieczne rzutowanie na konkretny typ
+        const currentRows = (answers[fieldId] as TableRowData[]) || [];
+
         // Tworzymy pusty wiersz z kluczami odpowiadającymi nazwom kolumn
-        const newRow = columns.reduce((acc, col) => ({ ...acc, [col]: '' }), {});
+        const newRow: TableRowData = columns.reduce((acc, col) => ({ ...acc, [col]: '' }), {});
+
         handleChange(fieldId, [...currentRows, newRow]);
     };
 
     const removeTableRow = (fieldId: string, index: number) => {
-        const currentRows = (answers[fieldId] as any[]) || [];
+        // ✅ Bezpieczne rzutowanie
+        const currentRows = (answers[fieldId] as TableRowData[]) || [];
         const newRows = currentRows.filter((_, i) => i !== index);
         handleChange(fieldId, newRows);
     };
 
     const updateTableRow = (fieldId: string, index: number, colName: string, val: string) => {
-        const currentRows = [...((answers[fieldId] as any[]) || [])];
+        // ✅ Bezpieczne rzutowanie
+        const currentRows = [...((answers[fieldId] as TableRowData[]) || [])];
+
         if (!currentRows[index]) return;
+
         currentRows[index] = { ...currentRows[index], [colName]: val };
         handleChange(fieldId, currentRows);
     };
@@ -64,10 +75,11 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                     );
                 }
 
-                // ✅ OBSŁUGA TABELI
+                // Tabela
                 if (field.type === 'table') {
                     const columns = field.columns || ['Kolumna 1'];
-                    const rows = (answers[field.id] as any[]) || [];
+                    // ✅ Bezpieczne rzutowanie przy odczycie
+                    const rows = (answers[field.id] as TableRowData[]) || [];
 
                     return (
                         <div key={field.id} className="space-y-2">
