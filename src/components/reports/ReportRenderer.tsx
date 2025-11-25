@@ -8,28 +8,43 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Camera, PenTool } from 'lucide-react';
+import { Camera, PenTool, Plus, Trash2 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-// ✅ Definiujemy typ możliwych odpowiedzi, zamiast 'any'
-type AnswerValue = string | number | boolean;
+type AnswerValue = string | number | boolean | any[];
 
 interface ReportRendererProps {
     fields: TemplateField[];
-    // ✅ Zmieniamy 'any' na konkretny typ
     onSubmit: (answers: Record<string, AnswerValue>) => void;
     isSubmitting: boolean;
 }
 
 export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendererProps) {
-    // ✅ Zmieniamy 'any' na konkretny typ
     const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
 
-    // ✅ Zmieniamy 'any' na konkretny typ
     const handleChange = (fieldId: string, value: AnswerValue) => {
-        setAnswers((prev) => ({
-            ...prev,
-            [fieldId]: value,
-        }));
+        setAnswers((prev) => ({ ...prev, [fieldId]: value }));
+    };
+
+    // --- LOGIKA TABELI ---
+    const addTableRow = (fieldId: string, columns: string[]) => {
+        const currentRows = (answers[fieldId] as any[]) || [];
+        // Tworzymy pusty wiersz z kluczami odpowiadającymi nazwom kolumn
+        const newRow = columns.reduce((acc, col) => ({ ...acc, [col]: '' }), {});
+        handleChange(fieldId, [...currentRows, newRow]);
+    };
+
+    const removeTableRow = (fieldId: string, index: number) => {
+        const currentRows = (answers[fieldId] as any[]) || [];
+        const newRows = currentRows.filter((_, i) => i !== index);
+        handleChange(fieldId, newRows);
+    };
+
+    const updateTableRow = (fieldId: string, index: number, colName: string, val: string) => {
+        const currentRows = [...((answers[fieldId] as any[]) || [])];
+        if (!currentRows[index]) return;
+        currentRows[index] = { ...currentRows[index], [colName]: val };
+        handleChange(fieldId, currentRows);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -40,6 +55,7 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {fields.map((field) => {
+                // Sekcja
                 if (field.type === 'section') {
                     return (
                         <div key={field.id} className="pt-4 pb-2 border-b">
@@ -48,6 +64,61 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                     );
                 }
 
+                // ✅ OBSŁUGA TABELI
+                if (field.type === 'table') {
+                    const columns = field.columns || ['Kolumna 1'];
+                    const rows = (answers[field.id] as any[]) || [];
+
+                    return (
+                        <div key={field.id} className="space-y-2">
+                            <Label>{field.label}</Label>
+                            <div className="border rounded-md overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50">
+                                            {columns.map((col, idx) => (
+                                                <TableHead key={idx}>{col}</TableHead>
+                                            ))}
+                                            <TableHead className="w-[50px]"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {rows.map((row, rowIndex) => (
+                                            <TableRow key={rowIndex}>
+                                                {columns.map((col, colIndex) => (
+                                                    <TableCell key={colIndex} className="p-2">
+                                                        <Input
+                                                            value={row[col] || ''}
+                                                            onChange={(e) => updateTableRow(field.id, rowIndex, col, e.target.value)}
+                                                            className="h-8"
+                                                        />
+                                                    </TableCell>
+                                                ))}
+                                                <TableCell className="p-2">
+                                                    <Button variant="ghost" size="icon" onClick={() => removeTableRow(field.id, rowIndex)}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {rows.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={columns.length + 1} className="text-center py-4 text-muted-foreground text-sm">
+                                                    Brak danych. Dodaj wiersz.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <Button type="button" variant="outline" size="sm" onClick={() => addTableRow(field.id, columns)}>
+                                <Plus className="h-4 w-4 mr-2" /> Dodaj wiersz
+                            </Button>
+                        </div>
+                    );
+                }
+
+                // Pozostałe pola
                 return (
                     <div key={field.id} className="space-y-2">
                         <Label htmlFor={field.id}>
@@ -71,7 +142,6 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                 required={field.required}
                                 value={(answers[field.id] as string) || ''}
                                 onChange={(e) => handleChange(field.id, e.target.value)}
-                                placeholder="Wpisz dłuższy opis..."
                                 className="min-h-[100px]"
                             />
                         )}
@@ -83,23 +153,17 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                 required={field.required}
                                 value={(answers[field.id] as string) || ''}
                                 onChange={(e) => handleChange(field.id, e.target.value)}
-                                placeholder="0"
                             />
                         )}
 
-                        {/* ✅ POPRAWKA: Używamy komponentu Checkbox zamiast <input> */}
                         {field.type === 'checkbox' && (
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id={field.id}
                                     checked={!!answers[field.id]}
-                                    // Shadcn Checkbox używa onCheckedChange, a nie onChange
                                     onCheckedChange={(checked) => handleChange(field.id, checked === true)}
                                 />
-                                <Label
-                                    htmlFor={field.id}
-                                    className="text-sm text-muted-foreground font-normal cursor-pointer"
-                                >
+                                <Label htmlFor={field.id} className="font-normal cursor-pointer text-muted-foreground">
                                     Zaznacz jeśli dotyczy
                                 </Label>
                             </div>
@@ -109,10 +173,10 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                             <Card className="border-dashed">
                                 <CardContent className="flex flex-col items-center justify-center py-6 text-muted-foreground">
                                     <Camera className="h-8 w-8 mb-2 opacity-50" />
-                                    <p className="text-sm">Kliknij, aby dodać zdjęcie (symulacja)</p>
+                                    <p className="text-sm">Kliknij, aby dodać zdjęcie</p>
                                     <Input
                                         type="text"
-                                        placeholder="Tutaj wpisz nazwę pliku (tymczasowo)"
+                                        placeholder="Nazwa pliku (symulacja)"
                                         className="mt-2"
                                         onChange={(e) => handleChange(field.id, e.target.value)}
                                     />
@@ -127,8 +191,7 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                         <PenTool className="absolute bottom-2 right-2 h-4 w-4 text-muted-foreground" />
                                     </div>
                                     <Input
-                                        placeholder="Wpisz imię i nazwisko jako podpis"
-                                        required={field.required}
+                                        placeholder="Podpis"
                                         onChange={(e) => handleChange(field.id, e.target.value)}
                                     />
                                 </CardContent>
