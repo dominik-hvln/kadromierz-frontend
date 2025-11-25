@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { TemplateField } from '@/components/reports/TemplateBuilder';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Camera, PenTool, Plus, Trash2 } from 'lucide-react';
+import { Camera, Plus, Trash2, Eraser } from 'lucide-react'; // Dodano Eraser
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import SignatureCanvas from 'react-signature-canvas'; // ✅ Import
 
-// ✅ EXPORTUJEMY TYPY, aby inne pliki (np. page.tsx) mogły ich używać
 export type TableRowData = Record<string, string>;
 export type AnswerValue = string | number | boolean | TableRowData[];
 
@@ -23,12 +23,33 @@ interface ReportRendererProps {
 
 export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendererProps) {
     const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
+    // Przechowujemy referencje do canvasów, żeby móc je czyścić
+    const sigPadRefs = useRef<Record<string, SignatureCanvas | null>>({});
 
     const handleChange = (fieldId: string, value: AnswerValue) => {
         setAnswers((prev) => ({ ...prev, [fieldId]: value }));
     };
 
-    // --- LOGIKA TABELI ---
+    // Obsługa zapisu podpisu po zakończeniu rysowania
+    const handleSignatureEnd = (fieldId: string) => {
+        const ref = sigPadRefs.current[fieldId];
+        if (ref && !ref.isEmpty()) {
+            // Zapisujemy jako Base64 PNG
+            const base64 = ref.getTrimmedCanvas().toDataURL('image/png');
+            handleChange(fieldId, base64);
+        }
+    };
+
+    // Czyszczenie podpisu
+    const clearSignature = (fieldId: string) => {
+        const ref = sigPadRefs.current[fieldId];
+        if (ref) {
+            ref.clear();
+            handleChange(fieldId, ''); // Czyścimy w stanie
+        }
+    };
+
+    // --- LOGIKA TABELI (Bez zmian) ---
     const addTableRow = (fieldId: string, columns: string[]) => {
         const currentRows = (answers[fieldId] as TableRowData[]) || [];
         const newRow: TableRowData = columns.reduce((acc, col) => ({ ...acc, [col]: '' }), {});
@@ -65,9 +86,9 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                 }
 
                 if (field.type === 'table') {
+                    // ... (Kod tabeli bez zmian - skopiuj z poprzedniej wersji lub zostaw jak jest)
                     const columns = field.columns || ['Kolumna 1'];
                     const rows = (answers[field.id] as TableRowData[]) || [];
-
                     return (
                         <div key={field.id} className="space-y-2">
                             <Label>{field.label}</Label>
@@ -86,11 +107,7 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                             <TableRow key={rowIndex}>
                                                 {columns.map((col, colIndex) => (
                                                     <TableCell key={colIndex} className="p-2">
-                                                        <Input
-                                                            value={row[col] || ''}
-                                                            onChange={(e) => updateTableRow(field.id, rowIndex, col, e.target.value)}
-                                                            className="h-8"
-                                                        />
+                                                        <Input value={row[col] || ''} onChange={(e) => updateTableRow(field.id, rowIndex, col, e.target.value)} className="h-8" />
                                                     </TableCell>
                                                 ))}
                                                 <TableCell className="p-2">
@@ -100,19 +117,11 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                                 </TableCell>
                                             </TableRow>
                                         ))}
-                                        {rows.length === 0 && (
-                                            <TableRow>
-                                                <TableCell colSpan={columns.length + 1} className="text-center py-4 text-muted-foreground text-sm">
-                                                    Brak danych. Dodaj wiersz.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
+                                        {rows.length === 0 && <TableRow><TableCell colSpan={columns.length + 1} className="text-center text-sm text-muted-foreground py-4">Brak danych.</TableCell></TableRow>}
                                     </TableBody>
                                 </Table>
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => addTableRow(field.id, columns)}>
-                                <Plus className="h-4 w-4 mr-2" /> Dodaj wiersz
-                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => addTableRow(field.id, columns)}><Plus className="h-4 w-4 mr-2" /> Dodaj wiersz</Button>
                         </div>
                     );
                 }
@@ -172,27 +181,41 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                 <CardContent className="flex flex-col items-center justify-center py-6 text-muted-foreground">
                                     <Camera className="h-8 w-8 mb-2 opacity-50" />
                                     <p className="text-sm">Kliknij, aby dodać zdjęcie</p>
-                                    <Input
-                                        type="text"
-                                        placeholder="Nazwa pliku (symulacja)"
-                                        className="mt-2"
-                                        onChange={(e) => handleChange(field.id, e.target.value)}
-                                    />
+                                    <Input type="text" placeholder="Nazwa pliku" className="mt-2" onChange={(e) => handleChange(field.id, e.target.value)} />
                                 </CardContent>
                             </Card>
                         )}
 
+                        {/* ✅ NOWA OBSŁUGA PODPISU */}
                         {field.type === 'signature' && (
-                            <Card className="bg-muted/20">
-                                <CardContent className="py-6">
-                                    <div className="border-b-2 border-gray-300 h-16 mb-2 relative">
-                                        <PenTool className="absolute bottom-2 right-2 h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <Input
-                                        placeholder="Podpis"
-                                        onChange={(e) => handleChange(field.id, e.target.value)}
+                            <Card className="border bg-white overflow-hidden">
+                                <div className="relative h-40 w-full bg-white">
+                                    <SignatureCanvas
+                                        ref={(ref) => { sigPadRefs.current[field.id] = ref; }}
+                                        penColor="black"
+                                        canvasProps={{
+                                            className: 'w-full h-full cursor-crosshair'
+                                        }}
+                                        onEnd={() => handleSignatureEnd(field.id)}
                                     />
-                                </CardContent>
+                                    {/* Placeholder tekstowy, znika jak zaczniesz rysować (opcjonalne, tu uproszczone) */}
+                                    {!answers[field.id] && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-muted-foreground/30 text-2xl font-handwriting">
+                                            Podpisz tutaj
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="border-t bg-muted/20 p-2 flex justify-end">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-xs h-7"
+                                        onClick={() => clearSignature(field.id)}
+                                    >
+                                        <Eraser className="h-3 w-3 mr-1" /> Wyczyść
+                                    </Button>
+                                </div>
                             </Card>
                         )}
                     </div>
