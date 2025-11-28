@@ -8,10 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Camera, Plus, Trash2, Eraser } from 'lucide-react'; // Dodano Eraser
+import { Camera, Plus, Trash2, Eraser, PenTool } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import SignatureCanvas from 'react-signature-canvas'; // ✅ Import
+import SignatureCanvas from 'react-signature-canvas';
 
+// ✅ Eksportujemy typy, aby używać ich w pliku page.tsx
 export type TableRowData = Record<string, string>;
 export type AnswerValue = string | number | boolean | TableRowData[];
 
@@ -23,35 +24,37 @@ interface ReportRendererProps {
 
 export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendererProps) {
     const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
-    // Przechowujemy referencje do canvasów, żeby móc je czyścić
+
+    // Referencje do podpisów (potrzebne do czyszczenia/pobierania obrazka)
     const sigPadRefs = useRef<Record<string, SignatureCanvas | null>>({});
 
+    // Uniwersalna funkcja zmiany stanu
     const handleChange = (fieldId: string, value: AnswerValue) => {
         setAnswers((prev) => ({ ...prev, [fieldId]: value }));
     };
 
-    // Obsługa zapisu podpisu po zakończeniu rysowania
+    // --- OBSŁUGA PODPISU ---
     const handleSignatureEnd = (fieldId: string) => {
         const ref = sigPadRefs.current[fieldId];
         if (ref && !ref.isEmpty()) {
-            // Zapisujemy jako Base64 PNG
+            // Pobieramy obrazek jako Base64 (PNG)
             const base64 = ref.getTrimmedCanvas().toDataURL('image/png');
             handleChange(fieldId, base64);
         }
     };
 
-    // Czyszczenie podpisu
     const clearSignature = (fieldId: string) => {
         const ref = sigPadRefs.current[fieldId];
         if (ref) {
             ref.clear();
-            handleChange(fieldId, ''); // Czyścimy w stanie
+            handleChange(fieldId, ''); // Czyścimy wartość w stanie
         }
     };
 
-    // --- LOGIKA TABELI (Bez zmian) ---
+    // --- OBSŁUGA TABELI ---
     const addTableRow = (fieldId: string, columns: string[]) => {
         const currentRows = (answers[fieldId] as TableRowData[]) || [];
+        // Tworzymy pusty wiersz z kluczami odpowiadającymi nazwom kolumn
         const newRow: TableRowData = columns.reduce((acc, col) => ({ ...acc, [col]: '' }), {});
         handleChange(fieldId, [...currentRows, newRow]);
     };
@@ -77,6 +80,7 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {fields.map((field) => {
+                // 1. Sekcja (Nagłówek)
                 if (field.type === 'section') {
                     return (
                         <div key={field.id} className="pt-4 pb-2 border-b">
@@ -85,14 +89,15 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                     );
                 }
 
+                // 2. Tabela (Dynamiczne wiersze)
                 if (field.type === 'table') {
-                    // ... (Kod tabeli bez zmian - skopiuj z poprzedniej wersji lub zostaw jak jest)
                     const columns = field.columns || ['Kolumna 1'];
                     const rows = (answers[field.id] as TableRowData[]) || [];
+
                     return (
                         <div key={field.id} className="space-y-2">
                             <Label>{field.label}</Label>
-                            <div className="border rounded-md overflow-hidden">
+                            <div className="border rounded-md overflow-hidden bg-card">
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-muted/50">
@@ -107,7 +112,11 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                             <TableRow key={rowIndex}>
                                                 {columns.map((col, colIndex) => (
                                                     <TableCell key={colIndex} className="p-2">
-                                                        <Input value={row[col] || ''} onChange={(e) => updateTableRow(field.id, rowIndex, col, e.target.value)} className="h-8" />
+                                                        <Input
+                                                            value={row[col] || ''}
+                                                            onChange={(e) => updateTableRow(field.id, rowIndex, col, e.target.value)}
+                                                            className="h-8"
+                                                        />
                                                     </TableCell>
                                                 ))}
                                                 <TableCell className="p-2">
@@ -117,15 +126,24 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                                 </TableCell>
                                             </TableRow>
                                         ))}
-                                        {rows.length === 0 && <TableRow><TableCell colSpan={columns.length + 1} className="text-center text-sm text-muted-foreground py-4">Brak danych.</TableCell></TableRow>}
+                                        {rows.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={columns.length + 1} className="text-center text-sm text-muted-foreground py-4">
+                                                    Brak danych. Kliknij "Dodaj wiersz".
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>
-                            <Button type="button" variant="outline" size="sm" onClick={() => addTableRow(field.id, columns)}><Plus className="h-4 w-4 mr-2" /> Dodaj wiersz</Button>
+                            <Button type="button" variant="outline" size="sm" onClick={() => addTableRow(field.id, columns)}>
+                                <Plus className="h-4 w-4 mr-2" /> Dodaj wiersz
+                            </Button>
                         </div>
                     );
                 }
 
+                // 3. Pozostałe typy pól
                 return (
                     <div key={field.id} className="space-y-2">
                         <Label htmlFor={field.id}>
@@ -181,26 +199,32 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                 <CardContent className="flex flex-col items-center justify-center py-6 text-muted-foreground">
                                     <Camera className="h-8 w-8 mb-2 opacity-50" />
                                     <p className="text-sm">Kliknij, aby dodać zdjęcie</p>
-                                    <Input type="text" placeholder="Nazwa pliku" className="mt-2" onChange={(e) => handleChange(field.id, e.target.value)} />
+                                    <Input
+                                        type="text"
+                                        placeholder="Nazwa pliku (symulacja)"
+                                        className="mt-2"
+                                        onChange={(e) => handleChange(field.id, e.target.value)}
+                                    />
                                 </CardContent>
                             </Card>
                         )}
 
-                        {/* ✅ NOWA OBSŁUGA PODPISU */}
+                        {/* ✅ PODPIS Z NAPRAWĄ MOBILNĄ */}
                         {field.type === 'signature' && (
-                            <Card className="border bg-white overflow-hidden">
+                            <Card className="border bg-white overflow-hidden shadow-sm">
                                 <div className="relative h-40 w-full bg-white">
                                     <SignatureCanvas
                                         ref={(ref) => { sigPadRefs.current[field.id] = ref; }}
                                         penColor="black"
+                                        backgroundColor="rgba(255,255,255,0)"
                                         canvasProps={{
                                             className: 'w-full h-full cursor-crosshair'
                                         }}
                                         onEnd={() => handleSignatureEnd(field.id)}
+                                        clearOnResize={false} // ⚠️ KLUCZOWA POPRAWKA
                                     />
-                                    {/* Placeholder tekstowy, znika jak zaczniesz rysować (opcjonalne, tu uproszczone) */}
                                     {!answers[field.id] && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-muted-foreground/30 text-2xl font-handwriting">
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-muted-foreground/30 text-2xl">
                                             Podpisz tutaj
                                         </div>
                                     )}
@@ -210,7 +234,7 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="text-xs h-7"
+                                        className="text-xs h-7 hover:bg-destructive/10 hover:text-destructive"
                                         onClick={() => clearSignature(field.id)}
                                     >
                                         <Eraser className="h-3 w-3 mr-1" /> Wyczyść
@@ -223,7 +247,7 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
             })}
 
             <div className="pt-4">
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
                     {isSubmitting ? 'Wysyłanie raportu...' : 'Zatwierdź Raport'}
                 </Button>
             </div>
