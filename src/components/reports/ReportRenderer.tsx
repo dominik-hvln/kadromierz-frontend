@@ -8,11 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Camera, Plus, Trash2, Eraser, PenTool } from 'lucide-react';
+import { Camera, Plus, Trash2, Eraser } from 'lucide-react'; // 1. Usunięto PenTool
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import SignatureCanvas from 'react-signature-canvas';
 
-// ✅ Eksportujemy typy, aby używać ich w pliku page.tsx
+// Eksportujemy typy, aby używać ich w pliku page.tsx
 export type TableRowData = Record<string, string>;
 export type AnswerValue = string | number | boolean | TableRowData[];
 
@@ -129,7 +129,8 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
                                         {rows.length === 0 && (
                                             <TableRow>
                                                 <TableCell colSpan={columns.length + 1} className="text-center text-sm text-muted-foreground py-4">
-                                                    Brak danych. Kliknij "Dodaj wiersz".
+                                                    {/* 2. Poprawiono cudzysłowy dla JSX */}
+                                                    {'Brak danych. Kliknij "Dodaj wiersz".'}
                                                 </TableCell>
                                             </TableRow>
                                         )}
