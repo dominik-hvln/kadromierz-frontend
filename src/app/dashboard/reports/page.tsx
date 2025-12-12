@@ -55,9 +55,30 @@ export default function ReportsListPage() {
         fetchReports();
     }, [user]);
 
-    const handleDownloadPDF = (reportId: string) => {
-        // Tu za chwilę podepniemy generowanie PDF
-        toast.info('Generowanie PDF... (Funkcja w budowie)');
+    const handleDownloadPDF = async (reportId: string, title: string) => {
+        try {
+            toast.message('Generowanie PDF...', { description: 'Proszę czekać.' });
+            const response = await api.get(`/reports/${reportId}/pdf`, {
+                responseType: 'blob',
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            link.setAttribute('download', `raport_${safeTitle}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+
+            // Sprzątanie
+            if (link.parentNode) link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Pobrano plik PDF');
+        } catch (error) {
+            console.error(error);
+            toast.error('Błąd pobierania PDF', { description: 'Spróbuj ponownie później.' });
+        }
     };
 
     return (
@@ -140,7 +161,7 @@ export default function ReportsListPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right space-x-2">
-                                            <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(report.id)}>
+                                            <Button variant="ghost" size="sm" onClick={() => handleDownloadPDF(report.id, report.title)}>
                                                 <Download className="h-4 w-4 mr-1" /> PDF
                                             </Button>
                                         </TableCell>
@@ -153,4 +174,5 @@ export default function ReportsListPage() {
             </Card>
         </div>
     );
+
 }

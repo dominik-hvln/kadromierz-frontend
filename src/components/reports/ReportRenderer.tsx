@@ -36,10 +36,14 @@ export function ReportRenderer({ fields, onSubmit, isSubmitting }: ReportRendere
     // --- OBSŁUGA PODPISU ---
     const handleSignatureEnd = (fieldId: string) => {
         const ref = sigPadRefs.current[fieldId];
-        if (ref && !ref.isEmpty()) {
-            // Pobieramy obrazek jako Base64 (PNG)
-            const base64 = ref.getTrimmedCanvas().toDataURL('image/png');
-            handleChange(fieldId, base64);
+        if (ref) {
+            if (ref.isEmpty()) {
+                handleChange(fieldId, '');
+            } else {
+                // Pobieramy obrazek jako Base64 (PNG)
+                const base64 = ref.getTrimmedCanvas().toDataURL('image/png');
+                handleChange(fieldId, base64);
+            }
         }
     };
 
