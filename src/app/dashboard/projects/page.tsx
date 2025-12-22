@@ -21,7 +21,7 @@ import {
     DialogFooter
 } from '@/components/ui/dialog';
 import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
-import {toast} from "sonner";
+import { toast } from "sonner";
 import Link from 'next/link';
 
 interface Project {
@@ -42,9 +42,16 @@ export default function ProjectsPage() {
         setIsLoading(true);
         try {
             const response = await api.get('/projects');
-            setProjects(response.data);
+            // Zabezpieczenie przed błędem, gdy API zwróci coś innego niż tablicę
+            if (Array.isArray(response.data)) {
+                setProjects(response.data);
+            } else {
+                console.error('Otrzymano nieprawidłowe dane projektów:', response.data);
+                setProjects([]);
+            }
         } catch (error) {
             console.error('Błąd podczas pobierania projektów:', error);
+            setProjects([]);
         } finally {
             setIsLoading(false);
         }
@@ -64,6 +71,7 @@ export default function ProjectsPage() {
             const response = await api.post(`/projects/${projectId}/qr-code`);
             setSelectedProjectQr(response.data.code_value);
         } catch (error) {
+            console.error(error);
             toast.error('Błąd', { description: 'Nie udało się wygenerować kodu QR.' });
         }
     };
@@ -131,8 +139,14 @@ export default function ProjectsPage() {
                                             {project.name}
                                         </Link>
                                     </TableCell>
-                                    <TableCell>{project.description}</TableCell>
+                                    <TableCell>{project.description || '-'}</TableCell>
+                                    <TableCell>
+                                        {project.created_at ? new Date(project.created_at).toLocaleDateString('pl-PL') : '-'}
+                                    </TableCell>
                                     <TableCell className="text-right">
+                                        <Button variant="outline" size="sm" onClick={() => handleGenerateQr(project.id)}>
+                                            Kod QR
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -156,7 +170,7 @@ export default function ProjectsPage() {
                                 value={selectedProjectQr}
                                 size={256}
                                 style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
-                                viewBox={`0 0 256 256`}
+                                viewBox="0 0 256 256"
                             />
                         )}
                     </div>
