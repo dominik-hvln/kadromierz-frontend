@@ -8,12 +8,15 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
+// Ustawiamy ikonę jawnie dla znacznika, zamiast modyfikować globalny prototyp (co powoduje błędy w Next.js/React StrictMode)
+const customIcon = new L.Icon({
     iconUrl: markerIcon.src,
     iconRetinaUrl: markerIcon2x.src,
     shadowUrl: markerShadow.src,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
 });
 
 interface GeofenceMapProps {
@@ -36,7 +39,12 @@ export function GeofenceMap({ center, radius, onCenterChange }: GeofenceMapProps
     return (
         <MapContainer center={center} zoom={15} style={{ height: '400px', width: '100%' }} className="rounded-md z-0">
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <Marker position={center} draggable={true} eventHandlers={{ dragend: (e) => onCenterChange(e.target.getLatLng()) }} />
+            <Marker
+                position={center}
+                draggable={true}
+                icon={customIcon}
+                eventHandlers={{ dragend: (e) => onCenterChange(e.target.getLatLng()) }}
+            />
             <Circle center={center} radius={radius} pathOptions={{ color: 'blue' }} />
             <MapEventsHandler onCenterChange={onCenterChange} />
         </MapContainer>
