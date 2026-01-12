@@ -128,10 +128,30 @@ export const superAdminApi = {
         const { data } = await api.post('/super-admin/plans', dto);
         return data;
     },
+    updatePlan: async (id: string, dto: any) => {
+        const { data } = await api.put(`/super-admin/plans/${id}`, dto);
+        return data;
+    },
+    deletePlan: async (id: string) => {
+        const { data } = await api.delete(`/super-admin/plans/${id}`);
+        return data;
+    },
 
     // MODUŁY
     getModules: async () => {
         const { data } = await api.get('/super-admin/modules');
+        return data;
+    },
+    createModule: async (dto: any) => {
+        const { data } = await api.post('/super-admin/modules', dto);
+        return data;
+    },
+    updateModule: async (code: string, dto: any) => {
+        const { data } = await api.put(`/super-admin/modules/${code}`, dto);
+        return data;
+    },
+    deleteModule: async (code: string) => {
+        const { data } = await api.delete(`/super-admin/modules/${code}`);
         return data;
     },
 
