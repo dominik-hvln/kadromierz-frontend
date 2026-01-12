@@ -10,7 +10,8 @@ import {
     MapPin,
     Activity,
     FileText, // ✅ Ikona dla Raportów
-    ShieldCheck // ✅ Ikona dla Super Admina
+    ShieldCheck, // ✅ Ikona dla Super Admina
+    CreditCard // ✅ Ikona dla Subskrypcji
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store'; // ✅ Potrzebne do sprawdzania roli
@@ -34,6 +35,14 @@ export const navLinks: NavLink[] = [
 
     { href: '/dashboard/users', label: 'Użytkownicy', icon: Users },
     { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin },
+
+    // ✅ SUBKSRYPCJA (Płatności)
+    {
+        href: '/dashboard/billing',
+        label: 'Subskrypcja',
+        icon: CreditCard,
+        roles: ['admin']
+    },
 
     // ✅ NOWY LINK: Super Admin (Tylko dla super_admin)
     {

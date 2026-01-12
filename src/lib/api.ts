@@ -165,3 +165,23 @@ export const superAdminApi = {
         return data;
     },
 };
+
+// --- STRIPE & SUBSCRIPTIONS ---
+export const stripeApi = {
+    getPlans: async () => {
+        const { data } = await api.get('/stripe/plans');
+        return data;
+    },
+    getSubscription: async () => {
+        const { data } = await api.get('/stripe/subscription');
+        return data;
+    },
+    createCheckoutSession: async (dto: { priceId: string, companyId: string, planId: string, successUrl: string, cancelUrl: string }) => {
+        const { data } = await api.post('/stripe/checkout', dto);
+        return data;
+    },
+    createPortalSession: async (returnUrl: string) => {
+        const { data } = await api.post('/stripe/portal', { returnUrl });
+        return data;
+    },
+};
