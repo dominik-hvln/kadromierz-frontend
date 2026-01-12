@@ -34,11 +34,9 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config;
 
-        // ✅ POPRAWKA: Dodano opis błędu
-        // @ts-expect-error _retry to niestandardowa właściwość, którą dodajemy do obiektu config
+        // @ts-expect-error _retry to niestandardowa właściwość
         if (error.response?.status === 401 && !originalRequest._retry) {
-            // ✅ POPRAWKA: Dodano opis błędu
-            // @ts-expect-error Ustawiamy flagę _retry na niestandardowej właściwości
+            // @ts-expect-error _retry to niestandardowa właściwość
             originalRequest._retry = true; // Oznaczamy żądanie jako ponawiane
             console.log('Access token wygasł. Próbuję odświeżyć...');
 
@@ -81,9 +79,6 @@ api.interceptors.response.use(
 
                 // Najpierw wyczyść stan w store
                 useAuthStore.getState().logout();
-
-                // Dopiero potem przekieruj (opcjonalnie, bo logout powinien zmienić stan auth na false i UI powinno zareagować)
-                // Używamy window.location.href jako fallback
                 window.location.href = '/login';
 
                 toast.error('Sesja wygasła', { description: 'Proszę zalogować się ponownie.' });
@@ -94,3 +89,55 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+// --- SUPER ADMIN API ---
+export const superAdminApi = {
+    // FIRMY
+    getCompanies: async () => {
+        const { data } = await api.get('/super-admin/companies');
+        return data;
+    },
+    getCompany: async (id: string) => {
+        const { data } = await api.get(`/super-admin/companies/${id}`);
+        return data;
+    },
+    createCompany: async (dto: { name: string }) => {
+        const { data } = await api.post('/super-admin/companies', dto);
+        return data;
+    },
+    // UŻYTKOWNICY
+    getUsers: async () => {
+        const { data } = await api.get('/super-admin/users');
+        return data;
+    },
+    createUser: async (dto: any) => {
+        const { data } = await api.post('/super-admin/users', dto);
+        return data;
+    },
+
+    // PLANY
+    getPlans: async () => {
+        const { data } = await api.get('/super-admin/plans');
+        return data;
+    },
+    createPlan: async (dto: any) => {
+        const { data } = await api.post('/super-admin/plans', dto);
+        return data;
+    },
+
+    // MODUŁY
+    getModules: async () => {
+        const { data } = await api.get('/super-admin/modules');
+        return data;
+    },
+
+    // ZARZĄDZANIE SUBSKRYPCJAMI
+    assignPlan: async (companyId: string, planId: string) => {
+        const { data } = await api.post(`/super-admin/companies/${companyId}/plan`, { planId });
+        return data;
+    },
+    toggleModule: async (companyId: string, moduleCode: string, isEnabled: boolean) => {
+        const { data } = await api.post(`/super-admin/companies/${companyId}/module`, { moduleCode, isEnabled });
+        return data;
+    },
+};
