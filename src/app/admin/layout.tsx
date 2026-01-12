@@ -7,7 +7,7 @@ import AdminSidebar from '@/components/layout/AdminSidebar';
 import { Toaster } from '@/components/ui/sonner';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated, isHydrating, userDocument } = useAuthStore();
+    const { isAuthenticated, isHydrating, user } = useAuthStore();
     const router = useRouter();
 
     useEffect(() => {
@@ -19,16 +19,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
 
         // Proste sprawdzenie roli
-        if (userDocument?.role !== 'super_admin') {
+        if (user?.role !== 'super_admin') {
             router.replace('/dashboard'); // Zwykły user ucieka do dashboardu
         }
-    }, [isAuthenticated, isHydrating, userDocument, router]);
+    }, [isAuthenticated, isHydrating, user, router]);
 
     if (isHydrating || !isAuthenticated) {
         return <div className="flex h-screen items-center justify-center">Ładowanie Panelu...</div>;
     }
 
-    if (userDocument?.role !== 'super_admin') {
+    if (user?.role !== 'super_admin') {
         return null; // Zapobieganie mignięciu
     }
 
@@ -42,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
                             SA
                         </div>
-                        <span className="text-sm font-semibold">{userDocument?.email}</span>
+                        <span className="text-sm font-semibold">{user?.email}</span>
                     </div>
                 </header>
                 <main className="flex-1 p-8 overflow-y-auto">
