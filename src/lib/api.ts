@@ -78,14 +78,14 @@ api.interceptors.response.use(
             } catch (refreshError) {
                 // 4. Jeśli odświeżenie się nie uda
                 console.error('Nie udało się odświeżyć tokenu. Wylogowuję.', refreshError);
-                
+
                 // Najpierw wyczyść stan w store
                 useAuthStore.getState().logout();
-                
+
                 // Dopiero potem przekieruj (opcjonalnie, bo logout powinien zmienić stan auth na false i UI powinno zareagować)
                 // Używamy window.location.href jako fallback
-                 window.location.href = '/login'; 
-                
+                window.location.href = '/login';
+
                 toast.error('Sesja wygasła', { description: 'Proszę zalogować się ponownie.' });
                 return Promise.reject(refreshError);
             }
