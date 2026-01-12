@@ -97,6 +97,10 @@ export const superAdminApi = {
         const { data } = await api.get('/super-admin/companies');
         return data;
     },
+    getStats: async () => {
+        const { data } = await api.get('/super-admin/stats');
+        return data;
+    },
     getCompany: async (id: string) => {
         const { data } = await api.get(`/super-admin/companies/${id}`);
         return data;

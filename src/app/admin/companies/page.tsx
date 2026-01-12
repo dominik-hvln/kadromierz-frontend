@@ -92,7 +92,9 @@ export default function CompaniesPage() {
                                     {company.created_at && format(new Date(company.created_at), 'd MMM yyyy', { locale: pl })}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" size="sm">Szczegóły</Button>
+                                    <a href={`/admin/companies/${company.id}`}>
+                                        <Button variant="outline" size="sm">Szczegóły</Button>
+                                    </a>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -106,6 +108,6 @@ export default function CompaniesPage() {
                     </TableBody>
                 </Table>
             </div>
-        </div>
+        </div >
     );
 }
