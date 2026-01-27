@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -9,42 +7,43 @@ import {
     Clock,
     MapPin,
     Activity,
-    FileText, // ✅ Ikona dla Raportów
-    ShieldCheck, // ✅ Ikona dla Super Admina
-    CreditCard // ✅ Ikona dla Subskrypcji
+    FileText,
+    ShieldCheck,
+    CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/store/auth.store'; // ✅ Potrzebne do sprawdzania roli
+import { useAuthStore } from '@/store/auth.store';
 
-// Rozszerzamy typ linku o opcjonalne role
+// Rozszerzamy typ linku
 interface NavLink {
     href: string;
     label: string;
     icon: React.ElementType;
-    roles?: string[]; // Tablica ról, które widzą ten link (brak = wszyscy)
+    roles?: string[]; // Tablica ról (brak = wszyscy)
+    moduleCode?: string; // ✅ Nowe pole: Wymagany moduł (brak = zawsze widoczne)
 }
 
 export const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Panel Główny', icon: Home },
     { href: '/dashboard/activity', label: 'Aktywność', icon: Activity },
-    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock },
-    { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban },
+    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, moduleCode: 'daily_entries' }, // Zakładając kod
+    { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban, moduleCode: 'projects' },
 
-    // ✅ NOWY LINK: Raporty (Dostępny dla wszystkich lub np. bez pracowników)
-    { href: '/dashboard/reports', label: 'Raporty', icon: FileText },
+    // ✅ NOWY LINK: Raporty
+    { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports' },
 
-    { href: '/dashboard/users', label: 'Użytkownicy', icon: Users },
-    { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin },
+    { href: '/dashboard/users', label: 'Użytkownicy', icon: Users, moduleCode: 'users' },
+    { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation' }, // Lub inny kod
 
     // ✅ SUBKSRYPCJA (Płatności)
     {
         href: '/dashboard/billing',
         label: 'Subskrypcja',
         icon: CreditCard,
-        roles: ['admin']
+        roles: ['admin'] // Bez modułu, bo admin musi mieć dostęp zawsze
     },
 
-    // ✅ NOWY LINK: Super Admin (Tylko dla super_admin)
+    // ✅ SUPER ADMIN
     {
         href: '/dashboard/super-admin',
         label: 'Super Admin',
@@ -59,22 +58,29 @@ interface SidebarProps {
 
 export default function Sidebar({ isMobile = false }: SidebarProps) {
     const pathname = usePathname();
-    const { user } = useAuthStore(); // Pobieramy usera ze stanu
+    const { user } = useAuthStore();
 
-    // ✅ Filtrujemy linki na podstawie roli zalogowanego użytkownika
+    // ✅ Filtrujemy linki
     const visibleLinks = navLinks.filter(link => {
-        // Jeśli link nie ma wymagań co do roli, pokazujemy go każdemu
-        if (!link.roles) return true;
-        // Jeśli link wymaga roli, a user nie jest zalogowany lub nie ma roli, ukrywamy
-        if (!user || !user.role) return false;
-        // Sprawdzamy czy rola usera jest na liście dozwolonych
-        return link.roles.includes(user.role);
+        if (!user) return false;
+
+        // 1. Sprawdź rolę
+        if (link.roles && !link.roles.includes(user.role)) return false;
+
+        // 2. Sprawdź moduł (Dla super_admin pomijamy sprawdzanie modułów, ma wszystko)
+        if (user.role !== 'super_admin' && link.moduleCode) {
+            // Jeśli user nie ma listy modułów (np. stary stan), ukryj lub pokaż (bezpieczniej: ukryj)
+            if (!user.modules) return false;
+            // Sprawdź czy moduł jest na liście aktywnych u użytkownika
+            return user.modules.includes(link.moduleCode);
+        }
+
+        return true;
     });
 
     const renderNavLinks = () => (
         <nav className="flex-1 space-y-2 px-4">
             {visibleLinks.map((link) => {
-                // Sprawdzamy czy link jest aktywny (także dla podstron, np. /reports/new)
                 const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
 
                 return (

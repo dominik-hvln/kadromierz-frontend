@@ -41,13 +41,15 @@ export default function PlansPage() {
         limits: {},
         is_active: true
     });
+    const [planModules, setPlanModules] = useState<string[]>([]); // Selected modules for plan
 
     const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
     const [editingModule, setEditingModule] = useState<any | null>(null);
     const [moduleData, setModuleData] = useState({
         code: '',
         name: '',
-        description: ''
+        description: '',
+        is_active: true
     });
 
     useEffect(() => {
@@ -82,10 +84,11 @@ export default function PlansPage() {
             limits: {},
             is_active: true
         });
+        setPlanModules([]);
         setIsPlanModalOpen(true);
     };
 
-    const handleEditPlan = (plan: any) => {
+    const handleEditPlan = async (plan: any) => {
         setEditingPlan(plan);
         setPlanData({
             code: plan.code,
@@ -95,17 +98,30 @@ export default function PlansPage() {
             limits: plan.limits || {},
             is_active: plan.is_active
         });
+        // Fetch assigned modules
+        try {
+            const assignedModules = await superAdminApi.getPlanModules(plan.id);
+            setPlanModules(assignedModules);
+        } catch (e) {
+            setPlanModules([]);
+        }
         setIsPlanModalOpen(true);
     };
 
     const handleSavePlan = async () => {
         try {
+            let planId = editingPlan?.id;
             if (editingPlan) {
                 await superAdminApi.updatePlan(editingPlan.id, planData);
                 toast.success('Plan zaktualizowany (Stripe zsynchronizowany)');
             } else {
-                await superAdminApi.createPlan(planData);
+                const newPlan = await superAdminApi.createPlan(planData);
+                planId = newPlan.id;
                 toast.success('Plan utworzony (Produkt w Stripe dodany)');
+            }
+            // Save modules
+            if (planId) {
+                await superAdminApi.setPlanModules(planId, planModules);
             }
             setIsPlanModalOpen(false);
             fetchData();
@@ -131,7 +147,7 @@ export default function PlansPage() {
 
     const handleCreateModule = () => {
         setEditingModule(null);
-        setModuleData({ code: '', name: '', description: '' });
+        setModuleData({ code: '', name: '', description: '', is_active: true });
         setIsModuleModalOpen(true);
     };
 
@@ -140,7 +156,8 @@ export default function PlansPage() {
         setModuleData({
             code: module.code,
             name: module.name,
-            description: module.description
+            description: module.description,
+            is_active: module.is_active !== false
         });
         setIsModuleModalOpen(true);
     };
@@ -246,15 +263,19 @@ export default function PlansPage() {
                                 <TableHead>Nazwa</TableHead>
                                 <TableHead>Kod (Klucz w kodzie)</TableHead>
                                 <TableHead>Opis</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
                                 <TableHead className="text-right">Akcje</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {modules.map((module) => (
-                                <TableRow key={module.code}>
+                                <TableRow key={module.code} className={module.is_active === false ? 'opacity-50 bg-gray-50' : ''}>
                                     <TableCell className="font-medium">{module.name}</TableCell>
                                     <TableCell className="font-mono text-xs">{module.code}</TableCell>
                                     <TableCell className="text-gray-500">{module.description}</TableCell>
+                                    <TableCell className="text-center">
+                                        {module.is_active !== false ? <span className="text-green-600 text-xs font-semibold">Aktywny</span> : <span className="text-gray-400 text-xs">Wyłączony</span>}
+                                    </TableCell>
                                     <TableCell className="text-right space-x-2">
                                         <Button variant="ghost" size="icon" onClick={() => handleEditModule(module)}>
                                             <Edit2 className="h-4 w-4 text-gray-500" />
@@ -321,6 +342,31 @@ export default function PlansPage() {
                                 className="col-span-3"
                             />
                         </div>
+
+                        {/* MODULE SELECTION */}
+                        <div className="border-t pt-4 mt-4">
+                            <Label className="text-sm font-medium mb-3 block">Przypisane moduły</Label>
+                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                                {modules.map((mod) => (
+                                    <label key={mod.code} className="flex items-center space-x-2 text-sm cursor-pointer p-2 rounded hover:bg-gray-50">
+                                        <input
+                                            type="checkbox"
+                                            checked={planModules.includes(mod.code)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setPlanModules([...planModules, mod.code]);
+                                                } else {
+                                                    setPlanModules(planModules.filter(c => c !== mod.code));
+                                                }
+                                            }}
+                                            className="rounded border-gray-300"
+                                        />
+                                        <span>{mod.name}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            {modules.length === 0 && <p className="text-sm text-gray-500">Brak zdefiniowanych modułów.</p>}
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsPlanModalOpen(false)}>Anuluj</Button>
@@ -364,6 +410,17 @@ export default function PlansPage() {
                                 onChange={(e) => setModuleData({ ...moduleData, description: e.target.value })}
                                 className="col-span-3"
                             />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="m_active" className="text-right">Aktywny</Label>
+                            <div className="col-span-3 flex items-center space-x-2">
+                                <Switch
+                                    id="m_active"
+                                    checked={moduleData.is_active}
+                                    onCheckedChange={(checked) => setModuleData({ ...moduleData, is_active: checked })}
+                                />
+                                <span className="text-sm text-gray-500">{moduleData.is_active ? 'Tak, dostępny w systemie' : 'Nie, ukryty (soft delete)'}</span>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>

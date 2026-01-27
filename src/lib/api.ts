@@ -155,6 +155,16 @@ export const superAdminApi = {
         return data;
     },
 
+    // PLAN MODULES
+    getPlanModules: async (planId: string) => {
+        const { data } = await api.get(`/super-admin/plans/${planId}/modules`);
+        return data;
+    },
+    setPlanModules: async (planId: string, moduleCodes: string[]) => {
+        const { data } = await api.put(`/super-admin/plans/${planId}/modules`, { moduleCodes });
+        return data;
+    },
+
     // ZARZĄDZANIE SUBSKRYPCJAMI
     assignPlan: async (companyId: string, planId: string) => {
         const { data } = await api.post(`/super-admin/companies/${companyId}/plan`, { planId });
