@@ -194,4 +194,8 @@ export const stripeApi = {
         const { data } = await api.post('/stripe/portal', { returnUrl });
         return data;
     },
+    verifySession: async (sessionId: string) => {
+        const { data } = await api.post('/stripe/verify-session', { sessionId });
+        return data;
+    },
 };

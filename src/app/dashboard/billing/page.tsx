@@ -36,6 +36,24 @@ export default function SubscriptionPage() {
 
     const fetchData = async () => {
         try {
+            // Check for success verification first
+            const searchParams = new URLSearchParams(window.location.search);
+            const success = searchParams.get('success');
+            const sessionId = searchParams.get('session_id');
+
+            if (success && sessionId) {
+                toast.info('Weryfikacja płatności...');
+                try {
+                    await stripeApi.verifySession(sessionId);
+                    toast.success('Płatność potwierdzona! Odświeżam dane...');
+                    // Clear URL
+                    window.history.replaceState({}, '', '/dashboard/billing');
+                } catch (e) {
+                    console.error(e);
+                    toast.warning('Płatność w trakcie przetwarzania lub błąd weryfikacji. Sprawdź status za chwilę.');
+                }
+            }
+
             const [subData, plansData] = await Promise.all([
                 stripeApi.getSubscription(),
                 stripeApi.getPlans()
@@ -63,11 +81,10 @@ export default function SubscriptionPage() {
             }
 
             const { url } = await stripeApi.createCheckoutSession({
-                // @ts-ignore
-                companyId: user.company_id,
+                companyId: user.company_id!,
                 planId: plan.id,
                 priceId: priceId,
-                successUrl: window.location.href + '?success=true',
+                successUrl: window.location.href + '?success=true&session_id={CHECKOUT_SESSION_ID}',
                 cancelUrl: window.location.href + '?canceled=true'
             });
 

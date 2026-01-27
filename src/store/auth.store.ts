@@ -9,6 +9,7 @@ interface User {
     first_name: string;
     last_name: string;
     role: 'admin' | 'manager' | 'employee' | 'super_admin';
+    company_id?: string; // ✅ Dodajemy brakujące pole
     modules?: string[]; // ✅ Lista aktywnych modułów
 }
 
