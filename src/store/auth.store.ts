@@ -20,6 +20,7 @@ interface AuthState {
     isAuthenticated: boolean;
     isHydrating: boolean;
     setSession: (token: string, refreshToken: string, userProfile: User) => void;
+    refreshSession: () => Promise<void>; // ✅
     logout: () => void;
     _setIsHydrating: (status: boolean) => void;
 }
@@ -39,7 +40,7 @@ const capacitorStorage = {
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             token: null,
             refreshToken: null,
             user: null,
@@ -57,6 +58,23 @@ export const useAuthStore = create<AuthState>()(
                 user: null,
                 isAuthenticated: false
             }),
+            // ✅ Nowa metoda do odświeżania profilu
+            refreshSession: async () => {
+                const token = get().token;
+                if (!token) return;
+
+                try {
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/auth/me`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (response.ok) {
+                        const userProfile = await response.json();
+                        set({ user: userProfile });
+                    }
+                } catch (e) {
+                    console.error('Failed to refresh session', e);
+                }
+            },
             _setIsHydrating: (status) => set({ isHydrating: status }),
         }),
         {

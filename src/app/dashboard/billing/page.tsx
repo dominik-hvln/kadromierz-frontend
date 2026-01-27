@@ -45,6 +45,10 @@ export default function SubscriptionPage() {
                 toast.info('Weryfikacja płatności...');
                 try {
                     await stripeApi.verifySession(sessionId);
+
+                    // ✅ Odśwież profil użytkownika (moduły!)
+                    await useAuthStore.getState().refreshSession();
+
                     toast.success('Płatność potwierdzona! Odświeżam dane...');
                     // Clear URL
                     window.history.replaceState({}, '', '/dashboard/billing');
