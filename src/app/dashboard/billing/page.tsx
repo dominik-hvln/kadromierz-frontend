@@ -48,9 +48,10 @@ export default function SubscriptionPage() {
                     toast.success('Płatność potwierdzona! Odświeżam dane...');
                     // Clear URL
                     window.history.replaceState({}, '', '/dashboard/billing');
-                } catch (e) {
+                } catch (e: any) {
                     console.error(e);
-                    toast.warning('Płatność w trakcie przetwarzania lub błąd weryfikacji. Sprawdź status za chwilę.');
+                    const msg = e.response?.data?.message || e.message || 'Błąd weryfikacji';
+                    toast.warning(`Błąd weryfikacji: ${msg}`);
                 }
             }
 
