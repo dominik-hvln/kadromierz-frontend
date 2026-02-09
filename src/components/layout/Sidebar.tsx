@@ -25,10 +25,10 @@ interface NavLink {
 export const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Panel Główny', icon: Home },
     { href: '/dashboard/activity', label: 'Aktywność', icon: Activity },
-    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, moduleCode: 'daily_entries' },
+    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock },
     { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban, moduleCode: 'projects' },
     { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports' },
-    { href: '/dashboard/users', label: 'Użytkownicy', icon: Users, moduleCode: 'users' },
+    { href: '/dashboard/users', label: 'Użytkownicy', icon: Users, roles: ['admin', 'manager'] },
     { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation' },
     {
         href: '/dashboard/billing',
