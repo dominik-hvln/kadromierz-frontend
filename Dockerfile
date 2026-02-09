@@ -21,12 +21,17 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_KEY=$NEXT_PUBLIC_SUPABASE_KEY
 
 # Build aplikacji Next.js
+# Wymuszamy NODE_ENV=production dla buildu (Next.js tego wymaga)
+ENV NODE_ENV=production
 RUN npm run build
 
 # === PRODUCTION STAGE ===
 FROM node:20-alpine AS production
 
 WORKDIR /app
+
+# Dodajemy curl dla healthchecku
+RUN apk add --no-cache curl
 
 # Zalecane dla bezpieczeństwa
 RUN addgroup --system --gid 1001 nodejs
