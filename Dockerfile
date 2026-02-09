@@ -47,12 +47,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 USER nextjs
 
 # Expose port (Next.js standalone domyślnie używa 3000)
+# W trybie standalone Next.js MUSI słuchać na 0.0.0.0
 ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
 EXPOSE 3000
 
-# Health check
+# Health check - używamy curl, bo Coolify go preferuje i zainstalowaliśmy go wyżej
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-    CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD curl -f http://127.0.0.1:3000/ || exit 1
 
 # Start aplikacji (w trybie standalone startujemy server.js)
 CMD ["node", "server.js"]
