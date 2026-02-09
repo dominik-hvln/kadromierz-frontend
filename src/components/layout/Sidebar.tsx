@@ -14,28 +14,22 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
 
-// Rozszerzamy typ linku
 interface NavLink {
     href: string;
     label: string;
     icon: React.ElementType;
-    roles?: string[]; // Tablica ról (brak = wszyscy)
-    moduleCode?: string; // ✅ Nowe pole: Wymagany moduł (brak = zawsze widoczne)
+    roles?: string[];
+    moduleCode?: string;
 }
 
 export const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Panel Główny', icon: Home },
     { href: '/dashboard/activity', label: 'Aktywność', icon: Activity },
-    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, moduleCode: 'daily_entries' }, // Zakładając kod
+    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, moduleCode: 'daily_entries' },
     { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban, moduleCode: 'projects' },
-
-    // ✅ NOWY LINK: Raporty
     { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports' },
-
     { href: '/dashboard/users', label: 'Użytkownicy', icon: Users, moduleCode: 'users' },
-    { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation' }, // Lub inny kod
-
-    // ✅ SUBKSRYPCJA (Płatności)
+    { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation' },
     {
         href: '/dashboard/billing',
         label: 'Subskrypcja',
