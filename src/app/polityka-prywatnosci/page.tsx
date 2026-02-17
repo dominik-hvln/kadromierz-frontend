@@ -18,62 +18,92 @@ export default function PolitykaPrywatnosciPage() {
                     <CardTitle className="text-2xl">Polityka prywatności (RODO) systemu Effixy</CardTitle>
                 </CardHeader>
                 <CardContent className="prose prose-sm max-w-none">
-                    <p className="text-muted-foreground italic mb-4">
-                        model: Klient jako Administrator danych, Effixy jako Podmiot Przetwarzający
-                        1. Role w przetwarzaniu danych
-                        W zakresie danych osobowych pracowników i innych Użytkowników wprowadzanych do Systemu,
-                        Klient (firma) jest Administratorem danych osobowych, a Usługodawca (Effixy) działa jako Podmiot
-                        Przetwarzający (procesor) na podstawie art. 28 RODO.
-                        W zakresie danych kontaktowych osób reprezentujących Klienta (np. administrator konta, osoba
-                        do kontaktu) Usługodawca może występować jako Administrator danych.
-                        2. Jakie dane mogą być przetwarzane w Systemie
-                        W zależności od konfiguracji Klienta, w Systemie mogą być przetwarzane m.in.:
-                        • dane identyfikacyjne Użytkownika (np. imię, nazwisko, identyfikator pracowniczy, e-mail
-                        służbowy),
-                        • dane ewidencji czasu pracy (start/stop, przerwy, nadgodziny, grafiki),
-                        • dane o nieobecnościach i urlopach (wnioski, status akceptacji),
-                        • dane lokalizacyjne związane z rejestracją czasu pracy (jeśli funkcja włączona),
-                        • dane techniczne (np. logi dostępu, identyfikatory sesji) w zakresie niezbędnym dla
-                        bezpieczeństwa i działania usługi.
-                        3. Cele przetwarzania
-                        Dane są przetwarzane w szczególności w celu:
-                        • świadczenia usługi Effixy na rzecz Klienta (ewidencja i rozliczanie czasu pracy, obsługa
-                        urlopów i raportów),
-                        • zapewnienia bezpieczeństwa Systemu oraz zapobiegania nadużyciom,
-                        • obsługi zgłoszeń i wsparcia technicznego,
-                        • rozliczeń i fakturowania (dane Klienta / osoby kontaktowej).
-                        4. Podstawa prawna i odpowiedzialność Klienta
-                        Klient jako Administrator danych odpowiada za zapewnienie podstawy prawnej przetwarzania
-                        danych Użytkowników, spełnienie obowiązku informacyjnego oraz realizację praw osób, których
-                        dane dotyczą.
-                        Usługodawca przetwarza dane wyłącznie na polecenie Klienta, w zakresie niezbędnym do
-                        świadczenia usługi, zgodnie z umową powierzenia przetwarzania danych.
-                        5. Odbiorcy danych i podwykonawcy
-                        Dane mogą być powierzane podwykonawcom Usługodawcy wyłącznie w zakresie niezbędnym do
-                        świadczenia usługi (np. dostawcy hostingu, infrastruktury, usług e-mail), na podstawie
-                        odpowiednich umów powierzenia.
-                        Dane nie są sprzedawane ani wykorzystywane do celów marketingowych w odniesieniu do
-                        Użytkowników Klienta.
-                        6. Bezpieczeństwo
-                        Usługodawca stosuje adekwatne środki techniczne i organizacyjne, w tym m.in. szyfrowanie
-                        transmisji, kontrolę dostępu, kopie zapasowe oraz monitoring bezpieczeństwa, aby chronić dane
-                        przed nieuprawnionym dostępem, utratą lub modyfikacją.
-                        7. Okres przechowywania danych
-                        Dane Użytkowników są przechowywane przez czas trwania umowy z Klientem. Po zakończeniu
-                        umowy dane mogą zostać udostępnione Klientowi do eksportu, a następnie usunięte po okresie
-                        retencji (np. 30 dni), chyba że prawo wymaga dłuższego przechowywania.
-                        Dane rozliczeniowe (np. faktury) przechowywane są przez okres wymagany przepisami
-                        podatkowymi i rachunkowymi.
-                        8. Prawa osób, których dane dotyczą
-                        Wnioski Użytkowników dotyczące realizacji praw wynikających z RODO (np. dostęp, sprostowanie,
-                        ograniczenie) powinny być kierowane do Klienta jako Administratora danych. Usługodawca
-                        wspiera Klienta w realizacji tych praw w zakresie wymaganym przez RODO i umowę powierzenia.
-                        9. Kontakt
-                        Kontakt w sprawach związanych z usługą i danymi osobowymi: [rodo@effixy.pl] /
-                        [kontakt@effixy.pl].
-                        W przypadku zapytań Użytkowników zalecany jest również kontakt z administratorem po stronie
-                        Klienta (dział HR / administrator konta).
+                    <p className="text-muted-foreground italic mb-6">
+                        Model współpracy: Klient jako Administrator danych, Effixy jako Podmiot Przetwarzający
                     </p>
+
+                    <h2>1. Role w przetwarzaniu danych</h2>
+                    <p>
+                        W zakresie danych osobowych pracowników i innych Użytkowników wprowadzanych do Systemu,
+                        <strong> Klient (firma) jest Administratorem danych osobowych</strong>, a Usługodawca (Effixy) działa jako
+                        <strong> Podmiot Przetwarzający (procesor)</strong> na podstawie art. 28 RODO.
+                    </p>
+                    <p>
+                        W zakresie danych kontaktowych osób reprezentujących Klienta (np. administrator konta, osoba do kontaktu),
+                        Usługodawca może występować jako samodzielny Administrator danych.
+                    </p>
+
+                    <h2>2. Jakie dane mogą być przetwarzane w Systemie</h2>
+                    <p>W zależności od konfiguracji wybranej przez Klienta, w Systemie mogą być przetwarzane m.in.:</p>
+                    <ul>
+                        <li><strong>Dane identyfikacyjne:</strong> imię, nazwisko, identyfikator pracowniczy, e-mail służbowy.</li>
+                        <li><strong>Ewidencja czasu pracy:</strong> godziny start/stop, przerwy, nadgodziny, grafiki.</li>
+                        <li><strong>Nieobecności:</strong> wnioski urlopowe, statusy akceptacji, rodzaje absencji.</li>
+                        <li><strong>Dane lokalizacyjne:</strong> związane z rejestracją czasu pracy (tylko jeśli funkcja jest włączona).</li>
+                        <li><strong>Dane techniczne:</strong> logi dostępu, identyfikatory sesji (niezbędne dla bezpieczeństwa usługi).</li>
+                    </ul>
+
+                    <h2>3. Cele przetwarzania</h2>
+                    <p>Dane są przetwarzane w szczególności w celu:</p>
+                    <ul>
+                        <li>świadczenia usługi Effixy (ewidencja czasu pracy, obsługa urlopów, raportowanie),</li>
+                        <li>zapewnienia bezpieczeństwa Systemu oraz zapobiegania nadużyciom,</li>
+                        <li>obsługi zgłoszeń i wsparcia technicznego dla Użytkowników,</li>
+                        <li>rozliczeń i fakturowania pomiędzy Usługodawcą a Klientem.</li>
+                    </ul>
+
+                    <h2>4. Podstawa prawna i odpowiedzialność Klienta</h2>
+                    <p>
+                        Klient jako Administrator danych odpowiada za zapewnienie podstawy prawnej przetwarzania danych Użytkowników,
+                        spełnienie obowiązku informacyjnego oraz realizację praw osób, których dane dotyczą.
+                    </p>
+                    <p>
+                        Usługodawca przetwarza dane <strong>wyłącznie na polecenie Klienta</strong>, w zakresie niezbędnym do świadczenia
+                        usługi, zgodnie z zawartą umową powierzenia przetwarzania danych.
+                    </p>
+
+                    <h2>5. Odbiorcy danych i podwykonawcy</h2>
+                    <p>
+                        Dane mogą być powierzane podwykonawcom Usługodawcy (np. dostawcy hostingu, infrastruktury chmurowej, usług e-mail)
+                        wyłącznie na podstawie odpowiednich umów powierzenia.
+                    </p>
+                    <blockquote>
+                        Ważne: Dane nie są sprzedawane ani wykorzystywane do celów marketingowych w odniesieniu do Użytkowników Klienta.
+                    </blockquote>
+
+                    <h2>6. Bezpieczeństwo</h2>
+                    <p>Usługodawca stosuje adekwatne środki techniczne i organizacyjne w celu ochrony danych, w tym:</p>
+                    <ul>
+                        <li>szyfrowanie transmisji danych (SSL/TLS),</li>
+                        <li>restrykcyjną kontrolę dostępu i systemy uwierzytelniania,</li>
+                        <li>regularne wykonywanie kopii zapasowych,</li>
+                        <li>ciągły monitoring bezpieczeństwa infrastruktury.</li>
+                    </ul>
+
+                    <h2>7. Okres przechowywania danych</h2>
+                    <p>
+                        Dane Użytkowników są przechowywane przez czas trwania umowy z Klientem. Po jej zakończeniu dane mogą zostać
+                        wyeksportowane przez Klienta, a następnie są <strong>trwale usuwane po okresie retencji (np. 30 dni)</strong>.
+                    </p>
+                    <p>
+                        Dane rozliczeniowe (np. faktury) są przechowywane zgodnie z wymogami przepisów podatkowych i rachunkowych.
+                    </p>
+
+                    <h2>8. Prawa osób, których dane dotyczą</h2>
+                    <p>
+                        Wnioski Użytkowników dotyczące realizacji praw RODO (dostęp, sprostowanie, usunięcie) powinny być kierowane
+                        bezpośrednio do <strong>Klienta jako Administratora danych</strong>.
+                    </p>
+                    <p>
+                        Usługodawca aktywnie wspiera Klienta w realizacji tych wniosków w zakresie przewidzianym przez prawo i umowę powierzenia.
+                    </p>
+
+                    <h2>9. Kontakt</h2>
+                    <p>Wszelkie zapytania dotyczące ochrony danych osobowych prosimy kierować na:</p>
+                    <ul>
+                        <li>E-mail: <strong>rodo@effixy.pl</strong> lub <strong>kontakt@effixy.pl</strong></li>
+                    </ul>
+                    <p>W przypadku pytań bezpośrednich od pracowników, zalecamy w pierwszej kolejności kontakt z wewnętrznym działem HR Klienta.</p>
                 </CardContent>
             </Card>
         </div>
