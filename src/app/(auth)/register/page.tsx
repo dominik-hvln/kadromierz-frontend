@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -9,9 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AxiosError } from 'axios';
+import { Capacitor } from '@capacitor/core';
 
 export default function RegisterPage() {
     const router = useRouter();
+
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            router.replace('/');
+        }
+    }, [router]);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [firstName, setFirstName] = useState('');

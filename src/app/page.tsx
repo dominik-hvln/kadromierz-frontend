@@ -32,7 +32,7 @@ const BIO_LAST_EMAIL_KEY = 'bio_auth:last_email';
 const bioKeys = (email: string) => ({
     enrolled: `bio_auth:enrolled:${email}`,   // '1' gdy zapisano dane dla tego maila
     declined: `bio_auth:declined:${email}`,   // '1' gdy odmówił — nie pytamy ponownie
-    pass:     `bio_auth:password:${email}`,   // hasło dla tego maila (jak dotąd: w Preferences)
+    pass: `bio_auth:password:${email}`,   // hasło dla tego maila (jak dotąd: w Preferences)
 });
 
 /** Migracja ze starych globalnych kluczy do nowych per-email (tylko jeśli pasujący e-mail) */
@@ -249,12 +249,14 @@ export default function LoginPage() {
                         </>
                     )}
 
-                    <div className="mt-4 text-center text-sm">
-                        Nie masz konta?{' '}
-                        <Link href="/register" className="underline">
-                            Zarejestruj się
-                        </Link>
-                    </div>
+                    {!isNative && (
+                        <div className="mt-4 text-center text-sm">
+                            Nie masz konta?{' '}
+                            <Link href="/register" className="underline">
+                                Zarejestruj się
+                            </Link>
+                        </div>
+                    )}
                     <div className="mt-2 text-center text-sm text-muted-foreground">
                         Zapomniałeś hasła?{' '}
                         <a className="underline hover:no-underline" href="/auth/forgot">Zresetuj</a>
