@@ -24,12 +24,12 @@ interface NavLink {
 
 export const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Panel Główny', icon: Home },
-    { href: '/dashboard/activity', label: 'Aktywność', icon: Activity },
-    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock },
-    { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban, moduleCode: 'projects' },
-    { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports' },
+    { href: '/dashboard/activity', label: 'Aktywność', icon: Activity, roles: ['admin', 'manager'] },
+    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, roles: ['admin', 'manager'] },
+    { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban, moduleCode: 'projects', roles: ['admin', 'manager'] },
+    { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports', roles: ['admin', 'manager'] },
     { href: '/dashboard/users', label: 'Użytkownicy', icon: Users, roles: ['admin', 'manager'] },
-    { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation' },
+    { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation', roles: ['admin', 'manager'] },
     {
         href: '/dashboard/billing',
         label: 'Subskrypcja',
