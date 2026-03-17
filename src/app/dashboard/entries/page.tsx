@@ -318,7 +318,7 @@ export default function TimeEntriesPage() {
                             <TableHead>Start</TableHead>
                             <TableHead>Koniec</TableHead>
                             <TableHead>Czas trwania</TableHead>
-                            <TableHead className="text-right">Akcje</TableHead>
+                            {!isEmployee && <TableHead className="text-right">Akcje</TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -349,21 +349,23 @@ export default function TimeEntriesPage() {
                                     <TableCell>{new Date(entry.start_time).toLocaleString('pl-PL')}</TableCell>
                                     <TableCell>{entry.end_time ? new Date(entry.end_time).toLocaleString('pl-PL') : '-'}</TableCell>
                                     <TableCell className="font-medium">{formatDuration(entry.start_time, entry.end_time)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <span className="sr-only">Otwórz menu</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => setEntryToEdit(entry)}>Edytuj</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleShowHistory(entry.id)}>Pokaż historię</DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => setEntryToDelete(entry)} className="text-red-600">Usuń</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+                                    {!isEmployee && (
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                        <span className="sr-only">Otwórz menu</span>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => setEntryToEdit(entry)}>Edytuj</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleShowHistory(entry.id)}>Pokaż historię</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => setEntryToDelete(entry)} className="text-red-600">Usuń</DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))
                         )}
