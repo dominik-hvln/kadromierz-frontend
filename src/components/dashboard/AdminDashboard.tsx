@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { ActivityFeed } from './ActivityFeed';
+import { TimeTrackerWidget } from './TimeTrackerWidget';
 import { useAuthStore } from '@/store/auth.store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Mail, Phone } from 'lucide-react';
@@ -161,6 +162,11 @@ export function AdminDashboard() {
 
             {/* Kolumna prawa (węższa) - Aktywności */}
             <div className="lg:col-span-1 space-y-6">
+                <div>
+                    <h2 className="text-xl font-semibold mb-4">Skaner Czasu Pracy</h2>
+                    <TimeTrackerWidget />
+                </div>
+                
                 <h2 className="text-xl font-semibold">Aktywność na Żywo</h2>
                 <ActivityFeed />
             </div>
