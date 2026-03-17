@@ -82,6 +82,13 @@ export const useAuthStore = create<AuthState>()(
             storage: createJSONStorage(() => capacitorStorage),
             onRehydrateStorage: () => (state) => {
                 if (state) {
+                    if (Capacitor.isNativePlatform()) {
+                        // On native platform, disable auto-login
+                        state.token = null;
+                        state.refreshToken = null;
+                        state.user = null;
+                        state.isAuthenticated = false;
+                    }
                     state._setIsHydrating(false);
                 }
             },

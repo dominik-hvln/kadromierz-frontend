@@ -3,6 +3,7 @@
 import {useEffect, useState, useCallback, useMemo} from 'react'; // Dodaj useCallback
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/auth.store';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -53,6 +54,8 @@ export default function TimeEntriesPage() {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
+    const { user } = useAuthStore();
+    const isEmployee = user?.role === 'employee';
 
     const totalDurationMinutes = useMemo(() => {
         return entries.reduce((total, entry) => {
@@ -195,13 +198,15 @@ export default function TimeEntriesPage() {
     }, [date, selectedUserId]);
 
     const fetchUsers = useCallback(async () => {
+        if (isEmployee) return; // Prevent 403 error for employees
+
         try {
             const response = await api.get('/users');
             setUsers(response.data);
         } catch (error: unknown) { // ✅ Poprawiony typ błędu
             console.error('Błąd podczas pobierania użytkowników:', error instanceof Error ? error.message : error);
         }
-    }, []); // Pusta tablica, bo nie ma zależności
+    }, [isEmployee]); // Depend on isEmployee now
 
     useEffect(() => {
         fetchUsers();
@@ -276,13 +281,15 @@ export default function TimeEntriesPage() {
                     <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={date} onSelect={setDate} numberOfMonths={2} /></PopoverContent>
                 </Popover>
 
-                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                    <SelectTrigger className="w-full sm:w-[280px]"><SelectValue placeholder="Filtruj po pracowniku" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Wszyscy pracownicy</SelectItem>
-                        {users.map(user => <SelectItem key={user.id} value={user.id}>{user.first_name} {user.last_name}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+                {!isEmployee && (
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                        <SelectTrigger className="w-full sm:w-[280px]"><SelectValue placeholder="Filtruj po pracowniku" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Wszyscy pracownicy</SelectItem>
+                            {users.map(u => <SelectItem key={u.id} value={u.id}>{u.first_name} {u.last_name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                )}
 
                 <Button onClick={fetchTimeEntries}>Filtruj</Button>
                 <div className="flex gap-2 ml-auto">
