@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Menu } from 'lucide-react';
+import { LogOut, Menu, UserCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import Link from 'next/link';
 
@@ -84,7 +84,13 @@ export default function Header() {
                             </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout}>
+                        <DropdownMenuItem asChild>
+                            <Link href="/dashboard/profile" className="cursor-pointer w-full flex items-center">
+                                <UserCircle className="mr-2 h-4 w-4" />
+                                <span>Mój profil</span>
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-500 focus:text-red-500">
                             <LogOut className="mr-2 h-4 w-4" />
                             <span>Wyloguj się</span>
                         </DropdownMenuItem>

@@ -23,7 +23,13 @@ import { Label } from '@/components/ui/label'; // Poprawiony import Label
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FileDown } from 'lucide-react';
+import { FileDown, DollarSign, Clock, Target } from 'lucide-react';
+
+interface FTE {
+    id: string;
+    name: string;
+    multiplier: number;
+}
 
 interface TimeEntry {
     id: string;
@@ -35,7 +41,13 @@ interface TimeEntry {
     was_edited: boolean;
     is_outside_geofence: boolean;
 }
-interface User { id: string; first_name: string; last_name: string; }
+interface User { 
+    id: string; 
+    first_name: string; 
+    last_name: string; 
+    fte_id?: string;
+    hourly_rate?: number;
+}
 interface AuditLog {
     id: number;
     editor: { first_name: string | null; last_name: string | null };
@@ -54,6 +66,7 @@ export default function TimeEntriesPage() {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
+    const [ftes, setFtes] = useState<FTE[]>([]);
     const { user } = useAuthStore();
     const isEmployee = user?.role === 'employee';
 
@@ -197,21 +210,25 @@ export default function TimeEntriesPage() {
         }
     }, [date, selectedUserId]);
 
-    const fetchUsers = useCallback(async () => {
-        if (isEmployee) return; // Prevent 403 error for employees
+    const fetchUsersAndFtes = useCallback(async () => {
+        if (isEmployee) return;
 
         try {
-            const response = await api.get('/users');
-            setUsers(response.data);
-        } catch (error: unknown) { // ✅ Poprawiony typ błędu
-            console.error('Błąd podczas pobierania użytkowników:', error instanceof Error ? error.message : error);
+            const [usersRes, ftesRes] = await Promise.all([
+                api.get('/users'),
+                api.get('/company-settings/ftes')
+            ]);
+            setUsers(usersRes.data);
+            setFtes(ftesRes.data);
+        } catch (error: unknown) {
+            console.error('Błąd podczas pobierania danych:', error instanceof Error ? error.message : error);
         }
-    }, [isEmployee]); // Depend on isEmployee now
+    }, [isEmployee]);
 
     useEffect(() => {
-        fetchUsers();
+        fetchUsersAndFtes();
         fetchTimeEntries();
-    }, [fetchUsers, fetchTimeEntries]); // ✅ Poprawione zależności useEffect
+    }, [fetchUsersAndFtes, fetchTimeEntries]);
 
     const formatDuration = (start: string, end: string | null) => {
         if (!end) return 'W trakcie';
@@ -224,6 +241,35 @@ export default function TimeEntriesPage() {
         const m = minutes % 60;
         return `${h}h ${m}m`;
     };
+
+    const getWorkingDays = (startDate: Date, endDate: Date) => {
+        let count = 0;
+        const curDate = new Date(startDate.getTime());
+        curDate.setHours(0, 0, 0, 0);
+        const end = new Date(endDate.getTime());
+        end.setHours(23, 59, 59, 999);
+        
+        while (curDate <= end) {
+            const dayOfWeek = curDate.getDay();
+            if(dayOfWeek !== 0 && dayOfWeek !== 6) count++;
+            curDate.setDate(curDate.getDate() + 1);
+        }
+        return count;
+    };
+
+    const selectedUserObj = users.find(u => u.id === selectedUserId);
+    const selectedFte = selectedUserObj?.fte_id ? ftes.find(f => f.id === selectedUserObj.fte_id) : null;
+    
+    let expectedHours = 0;
+    if (selectedFte && date?.from && date?.to) {
+        const workingDays = getWorkingDays(date.from, date.to);
+        expectedHours = workingDays * 8 * selectedFte.multiplier;
+    }
+
+    const overtimeHours = totalDurationMinutes / 60 - expectedHours;
+    const overtimeMinutes = Math.abs(totalDurationMinutes % 60);
+    const expectedHoursWhole = Math.floor(expectedHours);
+    const expectedMinutes = Math.round((expectedHours - expectedHoursWhole) * 60);
 
     const handleDelete = async () => {
         if (!entryToDelete) return;
@@ -301,13 +347,72 @@ export default function TimeEntriesPage() {
                     </Button>
                 </div>
             </div>
-            <div className="mb-4">
-                <h3 className="text-lg font-semibold">
+            <div className="mb-4 bg-gray-50 p-6 rounded-xl border pb-6">
+                <h3 className="text-lg font-semibold mb-4">
                     Podsumowanie dla wybranych filtrów
                 </h3>
-                <p className="text-muted-foreground">
-                    Łączny czas pracy: <span className="font-bold text-primary">{totalHours} godzin {totalMinutes} minut</span>
-                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex items-start space-x-3">
+                        <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                            <Clock className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Wypracowany czas</p>
+                            <p className="text-2xl font-bold text-gray-900">{totalHours}h {totalMinutes}m</p>
+                        </div>
+                    </div>
+
+                    {selectedUserObj && (
+                        <>
+                            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex items-start space-x-3">
+                                <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+                                    <Target className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500">Oczekiwany czas</p>
+                                    <p className="text-2xl font-bold text-gray-900">
+                                        {date?.from && date?.to && selectedFte ? `${expectedHoursWhole}h ${expectedMinutes}m` : 'Brak danych daty/etatu'}
+                                    </p>
+                                    {selectedFte && <p className="text-xs text-gray-500 mt-1">Wymiar: {selectedFte.name}</p>}
+                                </div>
+                            </div>
+
+                            {date?.from && date?.to && selectedFte && (
+                                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex items-start space-x-3">
+                                    <div className={`p-2 rounded-lg ${overtimeHours >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                        <AlertTriangle className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-500">Bilans czasu</p>
+                                        <p className={`text-2xl font-bold ${overtimeHours >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {overtimeHours > 0 ? '+' : (overtimeHours < 0 ? '-' : '')}
+                                            {Math.floor(Math.abs(overtimeHours))}h {overtimeMinutes}m
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {overtimeHours >= 0 ? 'Nadgodziny' : 'Niedoczas'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedUserObj.hourly_rate && (
+                                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex items-start space-x-3">
+                                    <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600">
+                                        <DollarSign className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-500">Estymowane wynagrodzenie</p>
+                                        <p className="text-2xl font-bold text-gray-900">
+                                            {((totalDurationMinutes / 60) * Number(selectedUserObj.hourly_rate)).toFixed(2)} PLN
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-1">Stawka: {selectedUserObj.hourly_rate} PLN/h</p>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
             <div className="border rounded-lg">
                 <Table>

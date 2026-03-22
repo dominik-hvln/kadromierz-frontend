@@ -1,4 +1,4 @@
-// src/components/users/CreateUserForm.tsx
+// src/components/users/EditUserForm.tsx
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -15,8 +15,6 @@ import { useEffect, useState } from 'react';
 const formSchema = z.object({
     firstName: z.string().min(2, "Imię musi mieć co najmniej 2 znaki."),
     lastName: z.string().min(2, "Nazwisko musi mieć co najmniej 2 znaki."),
-    email: z.string().email("Niepoprawny adres e-mail."),
-    password: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków."),
     role: z.enum(['employee', 'manager', 'admin']),
     employmentType: z.string().optional(),
     departmentId: z.string().optional(),
@@ -27,9 +25,10 @@ const formSchema = z.object({
     vacationDaysQuota: z.coerce.number().optional(),
     phoneNumber: z.string().optional(),
     emergencyContact: z.string().optional(),
+    status: z.string().optional(),
 });
 
-export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
+export function EditUserForm({ user, onSuccess }: { user: any, onSuccess: () => void }) {
     const [dictionaries, setDictionaries] = useState({ departments: [], teams: [], ftes: [] });
 
     useEffect(() => {
@@ -48,19 +47,46 @@ export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
 
     const form = useForm<any>({
         resolver: zodResolver(formSchema),
-        defaultValues: { firstName: '', lastName: '', email: '', password: '', role: 'employee' },
+        defaultValues: {
+            firstName: user.first_name || '',
+            lastName: user.last_name || '',
+            role: user.role || 'employee',
+            employmentType: user.employment_type || '',
+            departmentId: user.department_id || '',
+            teamId: user.team_id || '',
+            fteId: user.fte_id || '',
+            hourlyRate: user.hourly_rate || undefined,
+            contractEndDate: user.contract_end_date || '',
+            vacationDaysQuota: user.vacation_days_quota || undefined,
+            phoneNumber: user.phone_number || '',
+            emergencyContact: user.emergency_contact || '',
+            status: user.status || 'active',
+        },
     });
 
     async function onSubmit(values: any) {
         try {
-            // Czyszczenie pustych stringów
-            const payload = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== '' && v !== undefined && v !== null));
+            const payload = {
+                firstName: values.firstName,
+                lastName: values.lastName,
+                role: values.role,
+                employmentType: values.employmentType || null,
+                departmentId: values.departmentId || null,
+                teamId: values.teamId || null,
+                fteId: values.fteId || null,
+                hourlyRate: values.hourlyRate || null,
+                contractEndDate: values.contractEndDate || null,
+                vacationDaysQuota: values.vacationDaysQuota || null,
+                phoneNumber: values.phoneNumber || null,
+                emergencyContact: values.emergencyContact || null,
+                status: values.status || 'active',
+            };
             
-            await api.post('/users', payload);
-            toast.success('Sukces!', { description: 'Nowy pracownik został pomyślnie dodany.' });
+            await api.patch(`/users/${user.id}`, payload);
+            toast.success('Zaktualizowano pracownika!');
             onSuccess();
         } catch (error) {
-            toast.error('Błąd', { description: 'Nie udało się dodać pracownika.' });
+            toast.error('Błąd przy aktualizacji danych.');
         }
     }
 
@@ -76,24 +102,33 @@ export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                    <FormField name="email" render={({ field }) => ( <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField name="password" render={({ field }) => ( <FormItem><FormLabel>Hasło tymczasowe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={form.control as any} name="role" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Rola</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="employee">Pracownik</SelectItem>
+                                    <SelectItem value="manager">Manager</SelectItem>
+                                    <SelectItem value="admin">Admin</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control as any} name="status" render={({ field }) => (
+                        <FormItem><FormLabel>Status konta</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Wybierz..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="active">Aktywny</SelectItem>
+                                    <SelectItem value="suspended">Zawieszony / Na urlopie</SelectItem>
+                                    <SelectItem value="terminated">Zwolniony</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </FormItem>
+                    )} />
                 </div>
-                
-                <FormField control={form.control as any} name="role" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Rola</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="employee">Pracownik</SelectItem>
-                                <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )} />
 
                 <div className="border-t pt-4 mt-4"><h3 className="font-semibold mb-2">Dane zatrudnienia</h3></div>
 
@@ -127,7 +162,7 @@ export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
                     <FormField control={form.control as any} name="departmentId" render={({ field }) => (
                         <FormItem><FormLabel>Dział</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Wybierz..." /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Brak" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {dictionaries.departments.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                                 </SelectContent>
@@ -137,7 +172,7 @@ export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
                     <FormField control={form.control as any} name="teamId" render={({ field }) => (
                         <FormItem><FormLabel>Zespół</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!watchDept}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Wybierz..." /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Brak" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {filteredTeams.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                                 </SelectContent>
@@ -157,7 +192,7 @@ export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
                 </div>
 
                 <Button type="submit" disabled={form.formState.isSubmitting} className="w-full mt-6">
-                    {form.formState.isSubmitting ? 'Dodawanie...' : 'Dodaj pracownika'}
+                    {form.formState.isSubmitting ? 'Zapisywanie...' : 'Zapisz zmiany'}
                 </Button>
             </form>
         </Form>

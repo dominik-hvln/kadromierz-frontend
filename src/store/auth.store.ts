@@ -9,8 +9,22 @@ interface User {
     first_name: string;
     last_name: string;
     role: 'admin' | 'manager' | 'employee' | 'super_admin';
-    company_id?: string; // ✅ Dodajemy brakujące pole
-    modules?: string[]; // ✅ Lista aktywnych modułów
+    company_id?: string;
+    modules?: string[];
+
+    // Nowe pola HR
+    employment_type?: string;
+    department_id?: string;
+    team_id?: string;
+    fte_id?: string;
+    manager_id?: string;
+    employment_date?: string;
+    hourly_rate?: number;
+    contract_end_date?: string;
+    vacation_days_quota?: number;
+    phone_number?: string;
+    emergency_contact?: string;
+    status?: string;
 }
 
 interface AuthState {
@@ -22,6 +36,7 @@ interface AuthState {
     setSession: (token: string, refreshToken: string, userProfile: User) => void;
     refreshSession: () => Promise<void>; // ✅
     logout: () => void;
+    setUser: (user: User | null) => void;
     _setIsHydrating: (status: boolean) => void;
 }
 
@@ -58,6 +73,7 @@ export const useAuthStore = create<AuthState>()(
                 user: null,
                 isAuthenticated: false
             }),
+            setUser: (userProfile: User | null) => set({ user: userProfile }),
             // ✅ Nowa metoda do odświeżania profilu
             refreshSession: async () => {
                 const token = get().token;

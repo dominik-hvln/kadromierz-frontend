@@ -9,7 +9,8 @@ import {
     Activity,
     FileText,
     ShieldCheck,
-    CreditCard
+    CreditCard,
+    Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth.store';
@@ -28,8 +29,9 @@ export const navLinks: NavLink[] = [
     { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, roles: ['admin', 'manager', 'employee'] },
     { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban, moduleCode: 'projects', roles: ['admin', 'manager'] },
     { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports', roles: ['admin', 'manager'] },
-    { href: '/dashboard/users', label: 'Użytkownicy', icon: Users, roles: ['admin', 'manager'] },
+    { href: '/dashboard/users', label: 'Pracownicy', icon: Users, roles: ['admin', 'manager'] },
     { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation', roles: ['admin', 'manager'] },
+    { href: '/dashboard/company-settings', label: 'Ustawienia Kadrowe', icon: Settings, roles: ['admin'] },
     {
         href: '/dashboard/billing',
         label: 'Subskrypcja',
