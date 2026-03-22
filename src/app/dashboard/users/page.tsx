@@ -61,7 +61,7 @@ export default function UsersPage() {
                 <h1 className="text-3xl font-bold">Użytkownicy</h1>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild><Button>Dodaj użytkownika</Button></DialogTrigger>
-                    <DialogContent><DialogHeader><DialogTitle>Nowy użytkownik</DialogTitle></DialogHeader><CreateUserForm onSuccess={handleUserCreated} /></DialogContent>
+                    <DialogContent><DialogHeader><DialogTitle>Nowy użytkownik</DialogTitle></DialogHeader><CreateUserForm onSuccess={handleUserCreated} managers={users.filter(u => u.role === 'admin' || u.role === 'manager')} /></DialogContent>
                 </Dialog>
             </div>
             <div className="border rounded-lg bg-card text-card-foreground shadow-sm">
@@ -90,7 +90,7 @@ export default function UsersPage() {
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader><DialogTitle>Edycja pracownika</DialogTitle></DialogHeader>
-                    {selectedUser && <EditUserForm user={selectedUser} onSuccess={handleEditSuccess} />}
+                    {selectedUser && <EditUserForm user={selectedUser} onSuccess={handleEditSuccess} managers={users.filter(u => u.role === 'admin' || u.role === 'manager')} />}
                 </DialogContent>
             </Dialog>
         </div>

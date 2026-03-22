@@ -29,7 +29,7 @@ const formSchema = z.object({
     emergencyContact: z.string().optional(),
 });
 
-export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
+export function CreateUserForm({ onSuccess, managers = [] }: { onSuccess: () => void, managers?: any[] }) {
     const [dictionaries, setDictionaries] = useState({ departments: [], teams: [], ftes: [] });
 
     useEffect(() => {
@@ -53,8 +53,7 @@ export function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
 
     async function onSubmit(values: any) {
         try {
-            // Czyszczenie pustych stringów
-            const payload = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== '' && v !== undefined && v !== null));
+            const payload = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== '' && v !== undefined && v !== null && v !== 'none'));
             
             await api.post('/users', payload);
             toast.success('Sukces!', { description: 'Nowy pracownik został pomyślnie dodany.' });

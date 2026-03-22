@@ -26,9 +26,10 @@ const formSchema = z.object({
     phoneNumber: z.string().optional(),
     emergencyContact: z.string().optional(),
     status: z.string().optional(),
+    managerId: z.string().optional(),
 });
 
-export function EditUserForm({ user, onSuccess }: { user: any, onSuccess: () => void }) {
+export function EditUserForm({ user, onSuccess, managers = [] }: { user: any, onSuccess: () => void, managers?: any[] }) {
     const [dictionaries, setDictionaries] = useState({ departments: [], teams: [], ftes: [] });
 
     useEffect(() => {
@@ -61,6 +62,7 @@ export function EditUserForm({ user, onSuccess }: { user: any, onSuccess: () => 
             phoneNumber: user.phone_number || '',
             emergencyContact: user.emergency_contact || '',
             status: user.status || 'active',
+            managerId: user.manager_id || 'none',
         },
     });
 
@@ -80,6 +82,7 @@ export function EditUserForm({ user, onSuccess }: { user: any, onSuccess: () => 
                 phoneNumber: values.phoneNumber || null,
                 emergencyContact: values.emergencyContact || null,
                 status: values.status || 'active',
+                managerId: values.managerId === 'none' ? null : values.managerId || null,
             };
             
             await api.patch(`/users/${user.id}`, payload);
@@ -177,6 +180,21 @@ export function EditUserForm({ user, onSuccess }: { user: any, onSuccess: () => 
                                     {filteredTeams.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
+                        </FormItem>
+                    )} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control as any} name="managerId" render={({ field }) => (
+                        <FormItem><FormLabel>Przypisany Manager</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Brak" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="none">Brak (Główny profil)</SelectItem>
+                                    {managers.filter(m => m.id !== user.id).map((m: any) => <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
                         </FormItem>
                     )} />
                 </div>
