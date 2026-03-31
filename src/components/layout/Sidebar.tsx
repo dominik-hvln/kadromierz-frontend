@@ -35,7 +35,7 @@ export const navLinks: NavLink[] = [
     { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports', roles: ['admin', 'manager'] },
     { href: '/dashboard/users', label: 'Pracownicy', icon: Users, roles: ['admin', 'manager'] },
     { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation', roles: ['admin', 'manager'] },
-    { href: '/dashboard/company-settings', label: 'Ustawienia Kadrowe', icon: Settings, roles: ['admin'] },
+    { href: '/dashboard/company-settings', label: 'Ustawienia Kadrowe', icon: Settings, roles: ['admin', 'manager'] },
     {
         href: '/dashboard/billing',
         label: 'Subskrypcja',

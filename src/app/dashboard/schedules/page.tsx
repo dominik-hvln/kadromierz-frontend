@@ -6,12 +6,13 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 import { Calendar, dateFnsLocalizer, View, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
-import pl from 'date-fns/locale/pl';
+import { pl } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import ShiftRequestsModal from './ShiftRequestsModal';
 
 const locales = {
     'pl': pl
@@ -123,29 +124,34 @@ export default function SchedulesPage() {
                     <p className="text-muted-foreground">Podgląd zmian pracowniczych.</p>
                 </div>
                 
-                {(user?.role === 'admin' || user?.role === 'manager') && (
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="default">Generuj Grafik</Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                            <div className="space-y-4">
-                                <h4 className="font-medium">Parametry generowania</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Miesiąc</Label>
-                                        <Input type="number" min="1" max="12" value={genMonth} onChange={e => setGenMonth(e.target.value)} />
+                <div className="flex gap-4 items-center">
+                    {(user?.role === 'admin' || user?.role === 'manager') && (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="default">Generuj Grafik</Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80">
+                                <div className="space-y-4">
+                                    <h4 className="font-medium">Parametry generowania</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Miesiąc</Label>
+                                            <Input type="number" min="1" max="12" value={genMonth} onChange={e => setGenMonth(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Rok</Label>
+                                            <Input type="number" min="2020" max="2050" value={genYear} onChange={e => setGenYear(e.target.value)} />
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Rok</Label>
-                                        <Input type="number" min="2020" max="2050" value={genYear} onChange={e => setGenYear(e.target.value)} />
-                                    </div>
+                                    <Button className="w-full" onClick={handleGenerate}>Uruchom automat</Button>
                                 </div>
-                                <Button className="w-full" onClick={handleGenerate}>Uruchom automat</Button>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                )}
+                            </PopoverContent>
+                        </Popover>
+                    )}
+
+                    {/* Widoczne dla kazdego */}
+                    <ShiftRequestsModal />
+                </div>
             </div>
 
             <div className="glassmorphism-box p-6 flex-1 min-h-[600px] overflow-hidden">
