@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2 } from 'lucide-react';
+import SchedulesSettingsTab from '@/components/company-settings/SchedulesSettingsTab';
 
 interface Department { id: string; name: string; }
 interface Team { id: string; name: string; department_id: string; }
@@ -113,6 +114,7 @@ export default function CompanySettingsPage() {
                     <TabsTrigger value="departments">Działy</TabsTrigger>
                     <TabsTrigger value="teams">Zespoły</TabsTrigger>
                     <TabsTrigger value="ftes">Wymiary etatu</TabsTrigger>
+                    <TabsTrigger value="schedules">Grafik Zmian</TabsTrigger>
                 </TabsList>
 
                 {/* DEPARTMENTS */}
@@ -190,6 +192,11 @@ export default function CompanySettingsPage() {
                             </div>
                         ))}
                     </div>
+                </TabsContent>
+
+                {/* SCHEDULES */}
+                <TabsContent value="schedules" className="glassmorphism-box p-6 space-y-6">
+                    <SchedulesSettingsTab />
                 </TabsContent>
             </Tabs>
         </div>
