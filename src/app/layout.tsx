@@ -1,6 +1,13 @@
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 import Footer from '@/components/layout/Footer';
+import { Urbanist } from 'next/font/google';
+
+const urbanist = Urbanist({ 
+    subsets: ['latin', 'latin-ext'],
+    weight: ['400', '500', '600', '700', '800'],
+    variable: '--font-sans',
+});
 
 export const metadata = {
     title: 'Aplikacja Czasu Pracy',
@@ -14,7 +21,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="pl">
-            <body>
+            <body className={`${urbanist.variable} ${urbanist.className} antialiased`}>
 
                 {/* WARSTWA 1: TŁO (z-index: -20) */}
                 {/* Ten div jest na samym spodzie i ma nasz globalny, szary kolor tła. */}

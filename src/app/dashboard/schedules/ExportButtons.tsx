@@ -7,6 +7,7 @@ import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { UrbanistRegular } from '@/lib/fonts/Urbanist-Regular-normal';
 
 import SingleUserPrint from './SingleUserPrint';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -74,6 +75,9 @@ export default function ExportButtons({ month, year, events, holidays, departmen
 
     const handlePrintPDF = () => {
         const doc = new jsPDF({ orientation: 'landscape', format: 'a4' });
+        doc.addFileToVFS("Urbanist.ttf", UrbanistRegular);
+        doc.addFont("Urbanist.ttf", "Urbanist", "normal");
+        doc.setFont("Urbanist", "normal");
         
         const date = new Date(year, month - 1, 1);
         const count = getDaysInMonth(date);
@@ -105,7 +109,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             head: [header],
             body: body,
             startY: 20,
-            styles: { fontSize: 6, cellPadding: 1, overflow: 'linebreak' },
+            styles: { font: 'Urbanist', fontSize: 6, cellPadding: 1, overflow: 'linebreak' },
             headStyles: { fillColor: [41, 128, 185], textColor: 255 },
         });
 
@@ -116,11 +120,14 @@ export default function ExportButtons({ month, year, events, holidays, departmen
         if (!selectedUserForPrint) return;
         const doc = new jsPDF({ orientation: 'portrait', format: 'a4' });
 
+        doc.addFileToVFS("Urbanist.ttf", UrbanistRegular);
+        doc.addFont("Urbanist.ttf", "Urbanist", "normal");
+        doc.setFont("Urbanist", "normal");
+
         doc.setFontSize(16);
-        doc.text('Miesieczny Grafik Pracy', 14, 15);
+        doc.text('Miesięczny Grafik Pracy', 14, 15);
         doc.setFontSize(12);
         const enTitle = `${selectedUserForPrint.first_name} ${selectedUserForPrint.last_name}`;
-        // replace pl chars if font not supported easily
         doc.text(enTitle, 14, 23);
         doc.text(`Okres: ${month}/${year}`, 14, 30);
 
@@ -128,7 +135,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
         const count = getDaysInMonth(date);
         const daysInMonth = Array.from({ length: count }, (_, i) => new Date(year, month - 1, i + 1));
         
-        const head = [["Data", "Dzien", "Status / Zmiana", "Godziny"]];
+        const head = [["Data", "Dzień", "Status / Zmiana", "Godziny"]];
         const body: any[] = [];
 
         daysInMonth.forEach(day => {
@@ -141,8 +148,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             let hours = '-';
 
             if (isHoliday) {
-                // remove PL chars to avoid jspdf default font missing chars
-                status = `WOLNE`;
+                status = `WOLNE (${isHoliday.name || ''})`;
             } else if (ev) {
                 if (ev.status === 'replacement_needed') {
                     status = 'L4 / Urlop';
@@ -166,7 +172,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             head: head,
             body: body,
             startY: 38,
-            styles: { fontSize: 10 },
+            styles: { font: 'Urbanist', fontSize: 10 },
             didParseCell: function (hookData: any) {
                  const rowIdx = hookData.row.index;
                  if (rowIdx >= 0 && hookData.section === 'body') {
