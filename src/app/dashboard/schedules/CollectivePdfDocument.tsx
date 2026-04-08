@@ -4,12 +4,11 @@ import React, { useMemo } from 'react';
 import { Page, Text, View, Document, StyleSheet, Font, pdf } from '@react-pdf/renderer';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { UrbanistRegular } from '@/lib/fonts/Urbanist-Regular-normal';
 
-// Rejestrujemy natywny form dla PDF
+// Rejestrujemy czcionkę z polskimi znakami pobieraną dynamicznie by ominąć problematyczne w Base64 / WOFF2
 Font.register({
-  family: 'Urbanist',
-  src: `data:font/truetype;charset=utf-8;base64,${UrbanistRegular}`,
+  family: 'Roboto',
+  src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/roboto-regular-webfont.ttf',
 });
 
 const styles = StyleSheet.create({
@@ -17,7 +16,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     backgroundColor: '#ffffff',
     padding: 20,
-    fontFamily: 'Urbanist',
+    fontFamily: 'Roboto',
   },
   header: {
     flexDirection: 'row',
