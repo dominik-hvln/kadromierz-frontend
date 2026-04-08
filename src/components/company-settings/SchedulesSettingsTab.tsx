@@ -244,12 +244,12 @@ export default function SchedulesSettingsTab() {
                         );
                     })}
                 </div>
-            </div>
-            
-            <div className="flex justify-end pt-4 border-t">
-                <Button onClick={saveSettings} size="lg" className="gap-2">
-                    <Save className="h-4 w-4" /> Zapisz Ustawienia
-                </Button>
+                
+                <div className="flex justify-end pt-4 border-t">
+                    <Button onClick={saveSettings} size="lg" className="gap-2">
+                        <Save className="h-4 w-4" /> Zapisz Ustawienia
+                    </Button>
+                </div>
             </div>
             )}
         </div>
