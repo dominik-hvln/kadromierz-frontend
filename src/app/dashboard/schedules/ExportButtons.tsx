@@ -2,12 +2,14 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, Printer } from 'lucide-react';
+import { Download, FileText, Printer, ImageIcon } from 'lucide-react';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
 import SingleUserPrint from './SingleUserPrint';
+import CollectiveSchedulePrint from './CollectiveSchedulePrint';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 interface ExportButtonsProps {
     month: number;
@@ -70,13 +72,43 @@ export default function ExportButtons({ month, year, events, holidays, departmen
         document.body.removeChild(link);
     };
 
-    const handlePrintPDF = () => {
-        // Native browser print with CSS
-        document.body.classList.add('print-schedule-mode');
-        setTimeout(() => {
-            window.print();
-            document.body.classList.remove('print-schedule-mode');
-        }, 100);
+    const handlePrintPDF = async () => {
+        const element = document.getElementById('printable-collective-schedule');
+        if (!element) return;
+        
+        const toastId = toast.loading('Generowanie wysokiej jakości PDF...');
+        
+        try {
+            // dynamic import to prevent SSR issues
+            const html2canvas = (await import('html2canvas')).default;
+            const jsPDF = (await import('jspdf')).jsPDF;
+            
+            const canvas = await html2canvas(element, {
+                scale: 2, // Wyższa rozdzielczość "Retina"
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            // Landscape A4
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            // Add slight margin (5mm offset) or just fit width
+            pdf.addImage(imgData, 'PNG', 0, 5, pdfWidth, pdfHeight);
+            pdf.save(`Zbiorczy_Grafik_${month}_${year}.pdf`);
+            
+            toast.success('Pomyślnie zapisano PDF!', { id: toastId });
+        } catch (error) {
+            console.error('Error generating PDF', error);
+            toast.error('Wystąpił błąd podczas generowania pliku PDF.', { id: toastId });
+        }
     };
 
     const handlePrintSingleUser = () => {
@@ -96,7 +128,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             </Button>
             <Button variant="outline" size="sm" onClick={handlePrintPDF} className="text-gray-600">
                 <Printer className="w-4 h-4 mr-2" />
-                Drukuj PDF (Tabela)
+                Zbiorczy Grafik (PDF Image)
             </Button>
             
             <div className="flex gap-2 items-center bg-gray-50 border rounded-md p-1 px-2">
@@ -122,6 +154,15 @@ export default function ExportButtons({ month, year, events, holidays, departmen
                 holidays={holidays}
                 user={selectedUserForPrint}
             />
+
+            <div className="absolute overflow-hidden h-0 w-0">
+                <CollectiveSchedulePrint 
+                    month={month}
+                    year={year}
+                    events={events}
+                    holidays={holidays}
+                />
+            </div>
         </div>
     );
 }
