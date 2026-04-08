@@ -126,7 +126,31 @@
     }
 }
 
+@page schedule-landscape {
+    size: A4 landscape;
+    margin: 10mm;
+}
+
+@page single-portrait {
+    size: A4 portrait;
+    margin: 10mm;
+}
+
 @media print {
+    body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    body.print-schedule-mode {
+        page: schedule-landscape;
+    }
+    
+    body.print-single-user-mode {
+        page: single-portrait;
+    }
+
+    /* Ograniczenia wizualności dla Tabeli na pół ekranu */
     body.print-schedule-mode * {
         visibility: hidden;
     }
@@ -141,27 +165,10 @@
         width: 100%;
         margin: 0;
         padding: 0;
+        zoom: 0.65; /* Skalowanie, by tabela się nie ucinała */
     }
-    @page { size: landscape; margin: 1cm; }
-    body.print-schedule-mode .bg-amber-50 {
-        background-color: #fef3c7 !important;
-        -webkit-print-color-adjust: exact;
-    }
-    body.print-schedule-mode .bg-red-50 {
-        background-color: #fef2f2 !important;
-        -webkit-print-color-adjust: exact;
-    }
-    body.print-schedule-mode .bg-rose-100 {
-        background-color: #ffe4e6 !important;
-        -webkit-print-color-adjust: exact;
-    }
-    body.print-schedule-mode .bg-blue-50 {
-        background-color: #eff6ff !important;
-        -webkit-print-color-adjust: exact;
-    }
-}
 
-@media print {
+    /* Ograniczenia dla pojedyńczego widoku (Pionowo) */
     body.print-single-user-mode * {
         visibility: hidden;
     }
@@ -177,13 +184,10 @@
         margin: 0;
         padding: 0;
     }
-    body.print-single-user-mode .bg-amber-50 {
-        background-color: #fef3c7 !important;
-        -webkit-print-color-adjust: exact;
-    }
-    body.print-single-user-mode .bg-red-50 {
-        background-color: #fef2f2 !important;
-        -webkit-print-color-adjust: exact;
-    }
-    @page { size: portrait; margin: 1cm; }
+
+    /* Wymuszanie tła dla kolorów */
+    .bg-amber-50 { background-color: #fef3c7 !important; }
+    .bg-red-50 { background-color: #fef2f2 !important; }
+    .bg-rose-100 { background-color: #ffe4e6 !important; }
+    .bg-blue-50 { background-color: #eff6ff !important; }
 }
