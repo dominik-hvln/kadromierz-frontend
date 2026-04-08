@@ -8,11 +8,12 @@ interface ScheduleTableViewProps {
     month: number;
     year: number;
     events: any[];
+    holidays: any[];
     departmentId: string;
     onRefresh: () => void;
 }
 
-export default function ScheduleTableView({ month, year, events, departmentId, onRefresh }: ScheduleTableViewProps) {
+export default function ScheduleTableView({ month, year, events, holidays = [], departmentId, onRefresh }: ScheduleTableViewProps) {
     const daysInMonth = useMemo(() => {
         const date = new Date(year, month - 1, 1);
         const count = getDaysInMonth(date);
@@ -43,7 +44,10 @@ export default function ScheduleTableView({ month, year, events, departmentId, o
     }
 
     return (
-        <div className="overflow-x-auto border rounded-sm">
+        <div id="printable-schedule-table" className="overflow-x-auto border rounded-sm bg-white p-2">
+            <h2 className="text-xl font-bold mb-4 hidden print:block text-center">
+                Grafik Pracy: {month}/{year}
+            </h2>
             <table className="w-full text-sm border-collapse bg-white">
                 <thead>
                     <tr className="bg-gray-50 border-b">
@@ -69,13 +73,20 @@ export default function ScheduleTableView({ month, year, events, departmentId, o
                                 {user.first_name} {user.last_name}
                             </td>
                             {daysInMonth.map(day => {
+                                const dateStr = format(day, 'yyyy-MM-dd');
                                 const ev = getEventForDay(user.id, day);
                                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                                const isHoliday = holidays.find(h => h.date === dateStr);
+                                
                                 let bgClass = isWeekend ? 'bg-red-50/30' : '';
                                 let text = '-';
                                 let textColor = 'text-gray-300';
                                 
-                                if (ev) {
+                                if (isHoliday) {
+                                    bgClass = 'bg-amber-50';
+                                    textColor = 'text-amber-600 font-bold';
+                                    text = 'WOLNE';
+                                } else if (ev) {
                                     if (ev.status === 'replacement_needed') {
                                         bgClass = 'bg-rose-100';
                                         textColor = 'text-rose-700 font-bold';
@@ -83,7 +94,6 @@ export default function ScheduleTableView({ month, year, events, departmentId, o
                                     } else {
                                         bgClass = 'bg-blue-50';
                                         textColor = 'text-blue-700 font-medium';
-                                        // Just show first letter of shift or full name if short
                                         text = ev.raw.shift_name.length > 3 ? ev.raw.shift_name.substring(0, 3) + '.' : ev.raw.shift_name;
                                     }
                                 }
@@ -92,7 +102,7 @@ export default function ScheduleTableView({ month, year, events, departmentId, o
                                     <td 
                                         key={day.toISOString()} 
                                         className={`p-2 border-r text-center ${bgClass} ${textColor} text-xs`}
-                                        title={ev ? `${ev.raw.shift_name} (${ev.raw.start_time} - ${ev.raw.end_time})` : 'Brak przypisania'}
+                                        title={isHoliday ? isHoliday.name : (ev ? `${ev.raw.shift_name} (${ev.raw.start_time} - ${ev.raw.end_time})` : 'Brak przypisania')}
                                     >
                                         {text}
                                     </td>

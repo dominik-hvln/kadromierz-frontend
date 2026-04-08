@@ -120,8 +120,70 @@
     }
 
     .glassmorphism-box {
-        @apply rounded-[20px] border border-white/20 shadow-sm bg-card/35; /* <-- Kluczowa zmiana: dodano bg-card/70 */
+        @apply rounded-[20px] border border-white/20 shadow-sm bg-card/35;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
     }
+}
+
+@media print {
+    body.print-schedule-mode * {
+        visibility: hidden;
+    }
+    body.print-schedule-mode #printable-schedule-table,
+    body.print-schedule-mode #printable-schedule-table * {
+        visibility: visible;
+    }
+    body.print-schedule-mode #printable-schedule-table {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    @page { size: landscape; margin: 1cm; }
+    body.print-schedule-mode .bg-amber-50 {
+        background-color: #fef3c7 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    body.print-schedule-mode .bg-red-50 {
+        background-color: #fef2f2 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    body.print-schedule-mode .bg-rose-100 {
+        background-color: #ffe4e6 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    body.print-schedule-mode .bg-blue-50 {
+        background-color: #eff6ff !important;
+        -webkit-print-color-adjust: exact;
+    }
+}
+
+@media print {
+    body.print-single-user-mode * {
+        visibility: hidden;
+    }
+    body.print-single-user-mode #printable-single-user,
+    body.print-single-user-mode #printable-single-user * {
+        visibility: visible;
+    }
+    body.print-single-user-mode #printable-single-user {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    body.print-single-user-mode .bg-amber-50 {
+        background-color: #fef3c7 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    body.print-single-user-mode .bg-red-50 {
+        background-color: #fef2f2 !important;
+        -webkit-print-color-adjust: exact;
+    }
+    @page { size: portrait; margin: 1cm; }
 }

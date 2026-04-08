@@ -18,6 +18,8 @@ import ShiftRequestsModal from './ShiftRequestsModal';
 import ScheduleTableView from './ScheduleTableView';
 import AddScheduleModal from './AddScheduleModal';
 import EditScheduleModal from './EditScheduleModal';
+import ExportButtons from './ExportButtons';
+import CompanyHolidaysModal from './CompanyHolidaysModal';
 
 const locales = {
     'pl': pl
@@ -33,6 +35,7 @@ const localizer = dateFnsLocalizer({
 export default function SchedulesPage() {
     const { user } = useAuthStore();
     const [events, setEvents] = useState<any[]>([]);
+    const [holidays, setHolidays] = useState<any[]>([]);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [currentView, setCurrentView] = useState<View>(Views.MONTH);
     const [isLoading, setIsLoading] = useState(true);
@@ -100,8 +103,23 @@ export default function SchedulesPage() {
                        userId: s.user_id,
                        raw: s
                    };
+                const holidaysRes = await api.get(`/schedules/holidays?month=${month}&year=${year}&departmentId=${deptId || ''}`);
+                const hEvents = (holidaysRes.data || []).map((h: any) => {
+                    const parts = h.date.split('-');
+                    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                    return {
+                        id: `hol-${h.id || h.date}`,
+                        title: `[🎈Wolne] ${h.name}`,
+                        start: d,
+                        end: d,
+                        allDay: true,
+                        status: 'holiday',
+                        raw: h
+                    };
                 });
-                setEvents(calEvents);
+                
+                setHolidays(holidaysRes.data || []);
+                setEvents([...hEvents, ...calEvents]);
             }
         } catch (error) {
             toast.error('Błąd podczas ładowania grafiku');
@@ -129,6 +147,8 @@ export default function SchedulesPage() {
         let backgroundColor = '#3174ad';
         if (event.status === 'replacement_needed') {
             backgroundColor = '#e11d48'; // bg-rose-600
+        } else if (event.status === 'holiday') {
+            backgroundColor = '#f59e0b'; // bg-amber-500
         }
         return {
             style: {
@@ -143,6 +163,11 @@ export default function SchedulesPage() {
     };
 
     const handleEventClick = (event: any) => {
+         if (event.status === 'holiday') {
+             toast.info(`Święto: ${event.raw.name}`);
+             return;
+         }
+         
          if (user?.role === 'admin' || user?.role === 'manager') {
               setSelectedEvent(event);
               setIsEditModalOpen(true);
@@ -198,6 +223,7 @@ export default function SchedulesPage() {
                                     </div>
                                 </PopoverContent>
                             </Popover>
+                            <CompanyHolidaysModal departments={departments} onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)} />
                         </div>
                     )}
 
@@ -216,12 +242,21 @@ export default function SchedulesPage() {
                             )}
                         </TabsList>
                         
-                        {(user?.role === 'admin' || user?.role === 'manager') && (
-                            <AddScheduleModal 
-                                users={departmentUsers} 
-                                onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)} 
+                        <div className="flex items-center gap-2">
+                            <ExportButtons 
+                                month={parseInt(genMonth)} 
+                                year={parseInt(genYear)} 
+                                events={events} 
+                                holidays={holidays}
+                                departmentId={selectedDepartment} 
                             />
-                        )}
+                            {(user?.role === 'admin' || user?.role === 'manager') && (
+                                <AddScheduleModal 
+                                    users={departmentUsers} 
+                                    onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)} 
+                                />
+                            )}
+                        </div>
                     </div>
                     
                     <TabsContent value="calendar" className="flex-1 mt-0 h-full border rounded-md relative bg-white">
@@ -258,6 +293,7 @@ export default function SchedulesPage() {
                             month={parseInt(genMonth)} 
                             year={parseInt(genYear)} 
                             events={events} 
+                            holidays={holidays}
                             departmentId={selectedDepartment} 
                             onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)}
                         />
