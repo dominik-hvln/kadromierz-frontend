@@ -150,6 +150,10 @@
         page: single-portrait;
     }
 
+    body.print-collective-mode {
+        page: schedule-landscape;
+    }
+
     /* Ograniczenia wizualności dla Tabeli na pół ekranu */
     body.print-schedule-mode * {
         visibility: hidden;
@@ -165,7 +169,27 @@
         width: 100%;
         margin: 0;
         padding: 0;
-        zoom: 0.65; /* Skalowanie, by tabela się nie ucinała */
+        zoom: 0.65;
+    }
+
+    /* Ograniczenia dla przepięknego grafiku zbiorczego (Poziomo) */
+    body.print-collective-mode * {
+        visibility: hidden;
+    }
+    body.print-collective-mode #printable-collective-schedule,
+    body.print-collective-mode #printable-collective-schedule * {
+        visibility: visible;
+        background-color: white; /* Upewnia się, że nie jest przezroczyste */
+    }
+    body.print-collective-mode #printable-collective-schedule {
+        position: absolute;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0;
+        padding: 0;
+        /* Pomniejszenie dla druku by wszystko weszło w kadr */
+        zoom: 0.70;
     }
 
     /* Ograniczenia dla pojedyńczego widoku (Pionowo) */

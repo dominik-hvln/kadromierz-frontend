@@ -7,7 +7,7 @@ import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
 import SingleUserPrint from './SingleUserPrint';
-import CollectiveSchedulePrint from './CollectiveSchedulePrint';
+import { CollectiveSchedulePDFDocument } from './CollectivePdfDocument';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
@@ -72,47 +72,24 @@ export default function ExportButtons({ month, year, events, holidays, departmen
         document.body.removeChild(link);
     };
 
-    const handlePrintPDF = async () => {
-        const element = document.getElementById('printable-collective-schedule');
-        if (!element) return;
-        
-        const toastId = toast.loading('Generowanie wysokiej jakości PDF...');
-        
+    const handleGeneratePDF = async () => {
+        const toastId = toast.loading('Generowanie wektorowego pliku PDF...');
         try {
-            // dynamic import html-to-image to prevent SSR issues and support oklch/lab
-            const htmlToImage = await import('html-to-image');
-            const jsPDF = (await import('jspdf')).jsPDF;
+            // dynamic import to prevent SSR issues and window errors
+            const { pdf } = await import('@react-pdf/renderer');
+            const { saveAs } = (await import('file-saver')).default;
             
-            const dataUrl = await htmlToImage.toPng(element, {
-                quality: 1,
-                pixelRatio: 2, // Retina scale
-                backgroundColor: '#ffffff'
-            });
-
-            // Landscape A4
-            const pdf = new jsPDF({
-                orientation: 'landscape',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            // Since we know image width/height from DOM we don't have direct canvas reference, 
-            // but we can measure the image we just created
-            const img = new Image();
-            img.src = dataUrl;
-            await new Promise((resolve) => { img.onload = resolve; });
-
-            const pdfHeight = (img.height * pdfWidth) / img.width;
+            const doc = <CollectiveSchedulePDFDocument month={month} year={year} events={events} holidays={holidays} />;
+            const asPdf = pdf([]); // dummy arr
+            asPdf.updateContainer(doc);
             
-            // Add slight margin (5mm offset) or just fit width
-            pdf.addImage(dataUrl, 'PNG', 0, 5, pdfWidth, pdfHeight);
-            pdf.save(`Zbiorczy_Grafik_${month}_${year}.pdf`);
+            const blob = await asPdf.toBlob();
+            saveAs(blob, `Zbiorczy_Grafik_${month}_${year}.pdf`);
             
-            toast.success('Pomyślnie zapisano PDF!', { id: toastId });
+            toast.success('Pobrano idealny plik PDF!', { id: toastId });
         } catch (error) {
-            console.error('Error generating PDF', error);
-            toast.error('Wystąpił błąd podczas generowania pliku PDF.', { id: toastId });
+            console.error('Error generating PDF:', error);
+            toast.error('Wystąpił błąd przy tworzeniu PDF.', { id: toastId });
         }
     };
 
@@ -131,9 +108,9 @@ export default function ExportButtons({ month, year, events, holidays, departmen
                 <Download className="w-4 h-4 mr-2" />
                 CSV (Tabela)
             </Button>
-            <Button variant="outline" size="sm" onClick={handlePrintPDF} className="text-gray-600">
-                <Printer className="w-4 h-4 mr-2" />
-                Zbiorczy Grafik (PDF Image)
+            <Button variant="outline" size="sm" onClick={handleGeneratePDF} className="text-gray-600">
+                <Download className="w-4 h-4 mr-2" />
+                Pobierz Zbiorczy (PDF)
             </Button>
             
             <div className="flex gap-2 items-center bg-gray-50 border rounded-md p-1 px-2">
@@ -160,14 +137,6 @@ export default function ExportButtons({ month, year, events, holidays, departmen
                 user={selectedUserForPrint}
             />
 
-            <div className="absolute overflow-hidden h-0 w-0">
-                <CollectiveSchedulePrint 
-                    month={month}
-                    year={year}
-                    events={events}
-                    holidays={holidays}
-                />
-            </div>
         </div>
     );
 }
