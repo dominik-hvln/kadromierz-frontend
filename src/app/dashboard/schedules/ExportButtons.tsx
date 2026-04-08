@@ -109,8 +109,8 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             head: [header],
             body: body,
             startY: 20,
-            styles: { font: 'Urbanist', fontSize: 6, cellPadding: 1, overflow: 'linebreak' },
-            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            styles: { font: 'Urbanist', fontStyle: 'normal', fontSize: 6, cellPadding: 1, overflow: 'linebreak' },
+            headStyles: { fontStyle: 'normal', fillColor: [41, 128, 185], textColor: 255 },
         });
 
         doc.save(`grafik_${year}_${month}.pdf`);
@@ -172,7 +172,8 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             head: head,
             body: body,
             startY: 38,
-            styles: { font: 'Urbanist', fontSize: 10 },
+            styles: { font: 'Urbanist', fontStyle: 'normal', fontSize: 10 },
+            headStyles: { fontStyle: 'normal' },
             didParseCell: function (hookData: any) {
                  const rowIdx = hookData.row.index;
                  if (rowIdx >= 0 && hookData.section === 'body') {
