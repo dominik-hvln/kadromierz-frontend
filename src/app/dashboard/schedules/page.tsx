@@ -103,6 +103,8 @@ export default function SchedulesPage() {
                        userId: s.user_id,
                        raw: s
                    };
+                });
+
                 const holidaysRes = await api.get(`/schedules/holidays?month=${month}&year=${year}&departmentId=${deptId || ''}`);
                 const hEvents = (holidaysRes.data || []).map((h: any) => {
                     const parts = h.date.split('-');
