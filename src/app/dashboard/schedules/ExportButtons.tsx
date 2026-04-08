@@ -80,8 +80,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             const { saveAs } = (await import('file-saver')).default;
             
             const doc = <CollectiveSchedulePDFDocument month={month} year={year} events={events} holidays={holidays} />;
-            const asPdf = pdf([]); // dummy arr
-            asPdf.updateContainer(doc);
+            const asPdf = pdf(doc);
             
             const blob = await asPdf.toBlob();
             saveAs(blob, `Zbiorczy_Grafik_${month}_${year}.pdf`);
