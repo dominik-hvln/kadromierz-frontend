@@ -19,7 +19,8 @@ import { Label } from '@/components/ui/label';
 export default function ShiftRequestsModal() {
     const { user } = useAuthStore();
     const [requests, setRequests] = useState<any[]>([]);
-    const [newDate, setNewDate] = useState('');
+    const [newStartDate, setNewStartDate] = useState('');
+    const [newEndDate, setNewEndDate] = useState('');
     const [newShiftName, setNewShiftName] = useState('');
     const [isOpen, setIsOpen] = useState(false);
 
@@ -39,17 +40,19 @@ export default function ShiftRequestsModal() {
     };
 
     const handleSubmit = async () => {
-        if (!newDate || !newShiftName) {
-            toast.error('Wypełnij wszystkie pola');
+        if (!newStartDate || !newShiftName) {
+            toast.error('Wypełnij wymaganą datę początkową i nazwę zmiany');
             return;
         }
         try {
             await api.post('/schedules/requests', {
-                date: newDate,
+                start_date: newStartDate,
+                end_date: newEndDate || newStartDate,
                 requested_shift_name: newShiftName,
             });
             toast.success('Wysłano dyspozycję');
-            setNewDate('');
+            setNewStartDate('');
+            setNewEndDate('');
             setNewShiftName('');
             fetchRequests();
         } catch (e) {
@@ -83,12 +86,16 @@ export default function ShiftRequestsModal() {
                 </DialogHeader>
 
                 {user?.role === 'employee' && (
-                    <div className="flex gap-4 items-end mb-6">
-                        <div className="flex-1 space-y-2">
-                            <Label>Data (np. poniedziałek dla danego tygodnia)</Label>
-                            <Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} />
+                    <div className="flex gap-4 items-end mb-6 flex-wrap">
+                        <div className="flex-1 space-y-2 min-w-[120px]">
+                            <Label>Od (Data)</Label>
+                            <Input type="date" value={newStartDate} onChange={e => setNewStartDate(e.target.value)} />
                         </div>
-                        <div className="flex-1 space-y-2">
+                        <div className="flex-1 space-y-2 min-w-[120px]">
+                            <Label>Do (Data, opcjonalnie)</Label>
+                            <Input type="date" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} />
+                        </div>
+                        <div className="flex-1 space-y-2 min-w-[140px]">
                             <Label>Nazwa proponowanej zmiany</Label>
                             <Input placeholder="np. 1 Zmiana" value={newShiftName} onChange={e => setNewShiftName(e.target.value)} />
                         </div>
@@ -104,7 +111,7 @@ export default function ShiftRequestsModal() {
                             <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-md">
                                 <div>
                                     <p className="font-medium text-sm">Pracownik: {req.users?.first_name} {req.users?.last_name}</p>
-                                    <p className="text-xs text-muted-foreground">Oczekiwana zmiana: <strong>{req.requested_shift_name}</strong> na dzień {req.date}</p>
+                                    <p className="text-xs text-muted-foreground">Oczekiwana zmiana: <strong>{req.requested_shift_name}</strong> w terminie: {req.start_date} {req.end_date && req.end_date !== req.start_date ? ` do ${req.end_date}` : ''}</p>
                                     <div className="mt-1">
                                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                                             req.status === 'approved' ? 'bg-green-100 text-green-700' : 

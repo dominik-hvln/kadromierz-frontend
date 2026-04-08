@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Trash2, PlusCircle, Save } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ShiftDefinition {
     name: string;
@@ -42,15 +43,39 @@ const defaultWeek: WeekSettings = {
 
 export default function SchedulesSettingsTab() {
     const [settings, setSettings] = useState<WeekSettings>(defaultWeek);
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [selectedDepartment, setSelectedDepartment] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetchSettings();
+        fetchDepartments();
     }, []);
 
-    const fetchSettings = async () => {
+    useEffect(() => {
+        if (selectedDepartment) {
+            fetchSettings(selectedDepartment);
+        }
+    }, [selectedDepartment]);
+
+    const fetchDepartments = async () => {
         try {
-            const res = await api.get('/schedules/settings');
+            const res = await api.get('/company-settings/departments');
+            if (res.data) {
+                setDepartments(res.data);
+                if (res.data.length > 0) {
+                    setSelectedDepartment(res.data[0].id);
+                }
+            }
+        } catch (error) {
+            toast.error('Błąd podczas ładowania działów');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchSettings = async (departmentId: string) => {
+        try {
+            const res = await api.get(`/schedules/settings?departmentId=${departmentId}`);
             if (res.data) {
                 // merge with defaults to ensure all days exist
                 const merged = { ...defaultWeek, ...res.data };
@@ -64,8 +89,9 @@ export default function SchedulesSettingsTab() {
     };
 
     const saveSettings = async () => {
+        if (!selectedDepartment) return;
         try {
-            await api.put('/schedules/settings', settings);
+            await api.put(`/schedules/settings?departmentId=${selectedDepartment}`, settings);
             toast.success('Zapisano ustawienia grafiku pracy');
         } catch (error) {
             toast.error('Błąd zapisu ustawień');
@@ -118,9 +144,32 @@ export default function SchedulesSettingsTab() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className="text-xl font-semibold mb-2">Definicja Zmian Pracowniczych</h2>
-                <p className="text-sm text-gray-500 mb-6">Ustal dni robocze oraz zdefiniuj godziny poszczególnych zmian w tych dniach (np. I Zmiana, II Zmiana).</p>
+            <div className="flex flex-col gap-4 mb-6">
+                <h2 className="text-xl font-semibold">Definicja Zmian Pracowniczych</h2>
+                <div className="w-full md:w-1/3">
+                    <Label className="mb-2 block">Dział</Label>
+                    <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Wybierz dział" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {departments.map((dept) => (
+                                <SelectItem key={dept.id} value={dept.id}>
+                                    {dept.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            {!selectedDepartment ? (
+                <div className="text-center py-10 border rounded-md bg-muted/20">
+                    <p className="text-muted-foreground">Wybierz dział, aby skonfigurować zmiany.</p>
+                </div>
+            ) : (
+                <div>
+                    <p className="text-sm text-gray-500 mb-6">Ustal dni robocze oraz zdefiniuj godziny poszczególnych zmian w tych dniach (np. I Zmiana, II Zmiana).</p>
                 <div className="flex justify-end mb-4">
                     <Button onClick={saveSettings} className="gap-2">
                         <Save className="h-4 w-4" /> Zapisz Ustawienia
@@ -202,6 +251,7 @@ export default function SchedulesSettingsTab() {
                     <Save className="h-4 w-4" /> Zapisz Ustawienia
                 </Button>
             </div>
+            )}
         </div>
     );
 }
