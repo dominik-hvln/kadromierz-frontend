@@ -79,17 +79,16 @@ export default function ExportButtons({ month, year, events, holidays, departmen
         const toastId = toast.loading('Generowanie wysokiej jakości PDF...');
         
         try {
-            // dynamic import to prevent SSR issues
-            const html2canvas = (await import('html2canvas')).default;
+            // dynamic import html-to-image to prevent SSR issues and support oklch/lab
+            const htmlToImage = await import('html-to-image');
             const jsPDF = (await import('jspdf')).jsPDF;
             
-            const canvas = await html2canvas(element, {
-                scale: 2, // Wyższa rozdzielczość "Retina"
-                useCORS: true,
+            const dataUrl = await htmlToImage.toPng(element, {
+                quality: 1,
+                pixelRatio: 2, // Retina scale
                 backgroundColor: '#ffffff'
             });
 
-            const imgData = canvas.toDataURL('image/png');
             // Landscape A4
             const pdf = new jsPDF({
                 orientation: 'landscape',
@@ -98,10 +97,16 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             });
 
             const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            // Since we know image width/height from DOM we don't have direct canvas reference, 
+            // but we can measure the image we just created
+            const img = new Image();
+            img.src = dataUrl;
+            await new Promise((resolve) => { img.onload = resolve; });
+
+            const pdfHeight = (img.height * pdfWidth) / img.width;
             
             // Add slight margin (5mm offset) or just fit width
-            pdf.addImage(imgData, 'PNG', 0, 5, pdfWidth, pdfHeight);
+            pdf.addImage(dataUrl, 'PNG', 0, 5, pdfWidth, pdfHeight);
             pdf.save(`Zbiorczy_Grafik_${month}_${year}.pdf`);
             
             toast.success('Pomyślnie zapisano PDF!', { id: toastId });
