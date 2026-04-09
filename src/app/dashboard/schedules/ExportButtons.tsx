@@ -6,8 +6,8 @@ import { Download, FileText, Printer, ImageIcon } from 'lucide-react';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
-import SingleUserPrint from './SingleUserPrint';
 import { CollectiveSchedulePDFDocument } from './CollectivePdfDocument';
+import { SingleUserPdfDocument } from './SingleUserPdfDocument';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
@@ -92,13 +92,31 @@ export default function ExportButtons({ month, year, events, holidays, departmen
         }
     };
 
-    const handlePrintSingleUser = () => {
-        if (!selectedUserForPrint) return;
-        document.body.classList.add('print-single-user-mode');
-        setTimeout(() => {
-            window.print();
-            document.body.classList.remove('print-single-user-mode');
-        }, 100);
+    const handleGenerateSingleUserPDF = async () => {
+        if (!selectedUserForPrint) {
+            toast.error('Najpierw wybierz pracownika z listy.');
+            return;
+        }
+
+        const toastId = toast.loading('Generowanie wektorowego pliku PDF...');
+        try {
+            // dynamic import to prevent SSR issues
+            const { pdf } = await import('@react-pdf/renderer');
+            // Check if file-saver is strictly required, in browser we can also use Blob directly if default export fails
+            const FileSaver = await import('file-saver');
+            const saveAs = FileSaver.default?.saveAs || FileSaver.saveAs;
+            
+            const doc = <SingleUserPdfDocument month={month} year={year} events={events} holidays={holidays} user={selectedUserForPrint} />;
+            const asPdf = pdf(doc);
+            
+            const blob = await asPdf.toBlob();
+            saveAs(blob, `Grafik_${selectedUserForPrint.first_name}_${selectedUserForPrint.last_name}_${month}_${year}.pdf`);
+            
+            toast.success('Pobrano idealny plik PDF!', { id: toastId });
+        } catch (error) {
+            console.error('Error generating Single User PDF:', error);
+            toast.error('Wystąpił błąd przy tworzeniu PDF.', { id: toastId });
+        }
     };
 
     return (
@@ -123,18 +141,10 @@ export default function ExportButtons({ month, year, events, holidays, departmen
                         ))}
                     </SelectContent>
                 </Select>
-                <Button size="sm" variant="ghost" className="h-8 px-2" disabled={!selectedUserForPrint} onClick={handlePrintSingleUser}>
-                    <Printer className="w-4 h-4 text-blue-600" />
+                <Button size="sm" variant="ghost" className="h-8 px-2" disabled={!selectedUserForPrint} onClick={handleGenerateSingleUserPDF}>
+                    <Download className="w-4 h-4 text-blue-600" />
                 </Button>
             </div>
-
-            <SingleUserPrint 
-                month={month}
-                year={year}
-                events={events}
-                holidays={holidays}
-                user={selectedUserForPrint}
-            />
 
         </div>
     );
