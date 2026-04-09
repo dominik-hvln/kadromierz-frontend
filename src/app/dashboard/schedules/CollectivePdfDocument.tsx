@@ -204,7 +204,7 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
           </View>
           <View>
             <Text style={styles.headerRight}>Wygenerowano: {format(new Date(), 'dd.MM.yyyy HH:mm')}</Text>
-            <Text style={styles.headerRight}>System Aplikacja Czasu Pracy</Text>
+            <Text style={styles.headerRight}>System Effixy</Text>
           </View>
         </View>
 

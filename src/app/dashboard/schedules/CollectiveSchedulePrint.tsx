@@ -52,7 +52,7 @@ export default function CollectiveSchedulePrint({ month, year, events, holidays 
                 </div>
                 <div className="text-right text-sm text-gray-400">
                     <p>Wygenerowano: {format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
-                    <p className="font-semibold text-gray-500 mt-1">System Aplikacja Czasu Pracy</p>
+                    <p className="font-semibold text-gray-500 mt-1">System Effixy</p>
                 </div>
             </div>
 

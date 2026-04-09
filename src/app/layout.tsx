@@ -10,7 +10,7 @@ const urbanist = Urbanist({
 });
 
 export const metadata = {
-    title: 'Aplikacja Czasu Pracy',
+    title: 'Effixy',
     description: 'Zarządzanie czasem pracy w terenie',
 };
 
