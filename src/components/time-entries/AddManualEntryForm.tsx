@@ -15,6 +15,7 @@ import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 const formSchema = z.object({
     user_id: z.string().min(1, "Wybór pracownika jest wymagany."),
@@ -196,10 +197,14 @@ export function AddManualEntryForm({ onSuccess }: AddManualEntryFormProps) {
                         control={form.control}
                         name="start_time"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                                 <FormLabel>Czas rozpoczęcia</FormLabel>
                                 <FormControl>
-                                    <Input type="datetime-local" {...field} />
+                                    <DateTimePicker 
+                                        value={field.value} 
+                                        onChange={field.onChange} 
+                                        label="Wybierz start" 
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -209,10 +214,14 @@ export function AddManualEntryForm({ onSuccess }: AddManualEntryFormProps) {
                         control={form.control}
                         name="end_time"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                                 <FormLabel>Czas zakończenia</FormLabel>
                                 <FormControl>
-                                    <Input type="datetime-local" {...field} />
+                                    <DateTimePicker 
+                                        value={field.value} 
+                                        onChange={field.onChange} 
+                                        label="Wybierz koniec" 
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
