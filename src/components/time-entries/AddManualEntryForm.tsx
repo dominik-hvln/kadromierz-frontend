@@ -23,6 +23,13 @@ const formSchema = z.object({
     manual_comment: z.string().min(5, { message: "Komentarz musi mieć co najmniej 5 znaków." }),
     project_id: z.string().optional(),
     task_id: z.string().optional(),
+}).refine((data) => {
+    const start = new Date(data.start_time);
+    const end = new Date(data.end_time);
+    return end > start;
+}, {
+    message: "Czas zakończenia musi być po czasie rozpoczęcia",
+    path: ["end_time"],
 });
 
 interface User {
@@ -60,8 +67,8 @@ export function AddManualEntryForm({ onSuccess }: AddManualEntryFormProps) {
             start_time: '',
             end_time: '',
             manual_comment: '',
-            project_id: '',
-            task_id: '',
+            project_id: 'none',
+            task_id: 'none',
         },
     });
 
@@ -88,18 +95,26 @@ export function AddManualEntryForm({ onSuccess }: AddManualEntryFormProps) {
         fetchData();
     }, []);
 
-    const filteredTasks = selectedProjectId 
+    const filteredTasks = (selectedProjectId && selectedProjectId !== 'none')
         ? tasks.filter(t => t.project_id === selectedProjectId)
-        : tasks;
+        : [];
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
+            const start = new Date(values.start_time);
+            const end = new Date(values.end_time);
+
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                toast.error('Błąd', { description: 'Nieprawidłowy format daty.' });
+                return;
+            }
+
             const payload = {
                 ...values,
-                start_time: new Date(values.start_time).toISOString(),
-                end_time: new Date(values.end_time).toISOString(),
-                project_id: values.project_id || null,
-                task_id: values.task_id || null,
+                start_time: start.toISOString(),
+                end_time: end.toISOString(),
+                project_id: (values.project_id && values.project_id !== 'none') ? values.project_id : null,
+                task_id: (values.task_id && values.task_id !== 'none') ? values.task_id : null,
             };
 
             await api.post('/time-entries/manual', payload);
@@ -177,8 +192,32 @@ export function AddManualEntryForm({ onSuccess }: AddManualEntryFormProps) {
                 />
 
                 <div className="grid grid-cols-2 gap-4">
-                    <FormField name="start_time" render={({ field }) => ( <FormItem><FormLabel>Czas rozpoczęcia</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField name="end_time" render={({ field }) => ( <FormItem><FormLabel>Czas zakończenia</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField
+                        control={form.control}
+                        name="start_time"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Czas rozpoczęcia</FormLabel>
+                                <FormControl>
+                                    <Input type="datetime-local" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="end_time"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Czas zakończenia</FormLabel>
+                                <FormControl>
+                                    <Input type="datetime-local" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
