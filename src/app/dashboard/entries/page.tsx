@@ -23,7 +23,8 @@ import { Label } from '@/components/ui/label'; // Poprawiony import Label
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FileDown, DollarSign, Clock, Target } from 'lucide-react';
+import { FileDown, DollarSign, Clock, Target, Hand } from 'lucide-react';
+import { AddManualEntryForm } from '@/components/time-entries/AddManualEntryForm';
 
 interface FTE {
     id: string;
@@ -40,6 +41,8 @@ interface TimeEntry {
     task: { name: string };
     was_edited: boolean;
     is_outside_geofence: boolean;
+    is_manual: boolean;
+    manual_comment: string | null;
 }
 interface User { 
     id: string; 
@@ -66,6 +69,7 @@ export default function TimeEntriesPage() {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
+    const [isAddManualOpen, setIsAddManualOpen] = useState(false);
     const [ftes, setFtes] = useState<FTE[]>([]);
     const { user } = useAuthStore();
     const isEmployee = user?.role === 'employee';
@@ -294,6 +298,11 @@ export default function TimeEntriesPage() {
         }
     };
 
+    const handleAddManualSuccess = () => {
+        setIsAddManualOpen(false);
+        fetchTimeEntries();
+    };
+
     const handleUpdateSuccess = () => {
         setEntryToEdit(null);
         fetchTimeEntries();
@@ -339,6 +348,11 @@ export default function TimeEntriesPage() {
 
                 <Button onClick={fetchTimeEntries}>Filtruj</Button>
                 <div className="flex gap-2 ml-auto">
+                    {!isEmployee && (
+                        <Button onClick={() => setIsAddManualOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white">
+                            <Hand className="mr-2 h-4 w-4" /> Dodaj ręcznie
+                        </Button>
+                    )}
                     <Button variant="outline" size="sm" onClick={handleExportCSV}>
                         <FileDown className="mr-2 h-4 w-4" /> CSV
                     </Button>
@@ -435,7 +449,21 @@ export default function TimeEntriesPage() {
                                     <TableCell>
                                         <div className="flex items-center gap-1"> {/* Zmniejszony odstęp */}
                                             <span>{entry.user.first_name} {entry.user.last_name}</span>
-                                            {entry.was_edited && <Badge variant="outline" className="ml-1 px-1 text-xs">Edyt.</Badge>} {/* Zmniejszony badge */}
+                                            {entry.was_edited && <Badge variant="outline" className="ml-1 px-1 text-xs">Edyt.</Badge>}
+                                            {entry.is_manual && (
+                                                <TooltipProvider delayDuration={100}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger className="ml-1">
+                                                            <Badge variant="secondary" className="px-1 text-[10px] bg-orange-100 text-orange-700 hover:bg-orange-100">
+                                                                <Hand className="mr-1 h-3 w-3" /> Ręczny
+                                                            </Badge>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Dodano ręcznie: {entry.manual_comment}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
                                             {entry.is_outside_geofence && (
                                                 <TooltipProvider delayDuration={100}>
                                                     <Tooltip>
@@ -515,6 +543,18 @@ export default function TimeEntriesPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={isAddManualOpen} onOpenChange={setIsAddManualOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>Dodaj ręczny wpis czasu pracy</DialogTitle>
+                        <DialogDescription>
+                            Użyj tego formularza, jeśli pracownik zapomniał zarejestrować czas pracy.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <AddManualEntryForm onSuccess={handleAddManualSuccess} />
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
                 <DialogContent className="max-w-2xl">

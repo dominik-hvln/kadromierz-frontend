@@ -40,7 +40,7 @@ export const navLinks: NavLink[] = [
         href: '/dashboard/billing',
         label: 'Subskrypcja',
         icon: CreditCard,
-        roles: ['admin'] // Bez modułu, bo admin musi mieć dostęp zawsze
+        roles: ['admin']
     },
 
     // ✅ SUPER ADMIN
