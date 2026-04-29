@@ -138,6 +138,8 @@ export default function SchedulesPage() {
         try {
             await api.post('/schedules/generate', { month: parseInt(genMonth), year: parseInt(genYear), department_id: selectedDepartment });
             toast.success('Grafik został wygenerowany pomyślnie!');
+            // Zmień widok kalendarza na wygenerowany miesiąc
+            setCurrentDate(new Date(parseInt(genYear), parseInt(genMonth) - 1, 1));
             // Refresh
             fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment);
         } catch (error: any) {
@@ -225,7 +227,7 @@ export default function SchedulesPage() {
                                     </div>
                                 </PopoverContent>
                             </Popover>
-                            <CompanyHolidaysModal departments={departments} onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)} />
+                            <CompanyHolidaysModal departments={departments} onRefresh={() => fetchSchedules(currentDate.getMonth() + 1, currentDate.getFullYear(), selectedDepartment)} />
                         </div>
                     )}
 
@@ -246,8 +248,8 @@ export default function SchedulesPage() {
                         
                         <div className="flex items-center gap-2">
                             <ExportButtons 
-                                month={parseInt(genMonth)} 
-                                year={parseInt(genYear)} 
+                                month={currentDate.getMonth() + 1} 
+                                year={currentDate.getFullYear()} 
                                 events={events} 
                                 holidays={holidays}
                                 departmentId={selectedDepartment} 
@@ -255,7 +257,7 @@ export default function SchedulesPage() {
                             {(user?.role === 'admin' || user?.role === 'manager') && (
                                 <AddScheduleModal 
                                     users={departmentUsers} 
-                                    onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)} 
+                                    onRefresh={() => fetchSchedules(currentDate.getMonth() + 1, currentDate.getFullYear(), selectedDepartment)} 
                                 />
                             )}
                         </div>
@@ -292,12 +294,12 @@ export default function SchedulesPage() {
 
                     <TabsContent value="table" className="flex-1 mt-0">
                         <ScheduleTableView 
-                            month={parseInt(genMonth)} 
-                            year={parseInt(genYear)} 
+                            month={currentDate.getMonth() + 1} 
+                            year={currentDate.getFullYear()} 
                             events={events} 
                             holidays={holidays}
                             departmentId={selectedDepartment} 
-                            onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)}
+                            onRefresh={() => fetchSchedules(currentDate.getMonth() + 1, currentDate.getFullYear(), selectedDepartment)}
                         />
                     </TabsContent>
                 </Tabs>
@@ -309,7 +311,7 @@ export default function SchedulesPage() {
                     onClose={() => { setIsEditModalOpen(false); setSelectedEvent(null); }}
                     event={selectedEvent}
                     users={departmentUsers}
-                    onRefresh={() => fetchSchedules(parseInt(genMonth), parseInt(genYear), selectedDepartment)}
+                    onRefresh={() => fetchSchedules(currentDate.getMonth() + 1, currentDate.getFullYear(), selectedDepartment)}
                 />
             )}
         </div>
