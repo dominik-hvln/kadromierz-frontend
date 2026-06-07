@@ -213,8 +213,9 @@ export default function TimeEntriesPage() {
         setIsLoading(true);
         try {
             const params = new URLSearchParams();
-            if (date?.from) params.append('dateFrom', date.from.toISOString());
-            if (date?.to) params.append('dateTo', date.to.toISOString());
+            // Daty kalendarzowe (YYYY-MM-DD) — backend filtruje po start_time w strefie Europe/Warsaw
+            if (date?.from) params.append('dateFrom', format(date.from, 'yyyy-MM-dd'));
+            if (date?.to) params.append('dateTo', format(date.to, 'yyyy-MM-dd'));
             if (selectedUserId && selectedUserId !== 'all') {
                 params.append('userId', selectedUserId);
             }

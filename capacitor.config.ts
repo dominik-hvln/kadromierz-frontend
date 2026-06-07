@@ -6,8 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     url: 'https://app.effixy.pl',
-    cleartext: true
-  }
+    cleartext: true,
+  },
+  ios: {
+    scheme: 'Effixy',
+  },
 };
 
 export default config;
