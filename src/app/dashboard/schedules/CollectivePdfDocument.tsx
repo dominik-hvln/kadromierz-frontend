@@ -248,9 +248,11 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
                       {isHoliday ? (
                           <Text style={styles.holidayText}>W</Text>
                       ) : ev ? (
-                          ev.status === 'replacement_needed' 
-                              ? <Text style={styles.shiftL4}>L4</Text>
-                              : renderBadge(ev.raw.shift_name)
+                          ev.status === 'on_leave'
+                              ? <Text style={styles.shiftL4}>U</Text>
+                              : ev.status === 'sick_leave' || ev.status === 'replacement_needed'
+                                  ? <Text style={styles.shiftL4}>L4</Text>
+                                  : renderBadge(ev.raw.shift_name)
                       ) : (
                           <Text style={{ fontSize: 7, color: '#aaa' }}>-</Text>
                       )}

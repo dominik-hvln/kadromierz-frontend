@@ -113,6 +113,10 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
     if (isMobile) {
         return (
             <div className="flex h-full flex-col py-6">
+                <div className="flex items-center gap-2 px-6 pb-4 font-semibold">
+                    <img src="/logo.png" alt="Effixy" className="h-8 w-8" />
+                    <span className="text-xl">Effixy</span>
+                </div>
                 {renderNavLinks()}
             </div>
         );
@@ -122,7 +126,8 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
         <aside className={cn("hidden md:flex h-full w-72 flex-col")}>
             <div className="flex h-[72px] items-center px-8">
                 <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-                    <span className="text-xl">TwojaAplikacja</span>
+                    <img src="/logo.png" alt="Effixy" className="h-8 w-8" />
+                    <span className="text-xl">Effixy</span>
                 </Link>
             </div>
             <div className="flex-1 overflow-y-auto">

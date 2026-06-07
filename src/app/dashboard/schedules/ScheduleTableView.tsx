@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { getDaysInMonth, format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getScheduleCellLabel } from '@/lib/schedule-display';
 
 interface ScheduleTableViewProps {
     month: number;
@@ -87,14 +88,14 @@ export default function ScheduleTableView({ month, year, events, holidays = [], 
                                     textColor = 'text-amber-600 font-bold';
                                     text = 'WOLNE';
                                 } else if (ev) {
-                                    if (ev.status === 'replacement_needed') {
-                                        bgClass = 'bg-rose-100';
-                                        textColor = 'text-rose-700 font-bold';
-                                        text = 'L4/URL';
+                                    if (['on_leave', 'sick_leave', 'replacement_needed'].includes(ev.status)) {
+                                        bgClass = ev.status === 'on_leave' ? 'bg-violet-100' : 'bg-rose-100';
+                                        textColor = ev.status === 'on_leave' ? 'text-violet-700 font-bold' : 'text-rose-700 font-bold';
+                                        text = getScheduleCellLabel(ev.status, ev.raw?.requires_replacement, ev.raw?.shift_name);
                                     } else {
                                         bgClass = 'bg-blue-50';
                                         textColor = 'text-blue-700 font-medium';
-                                        text = ev.raw.shift_name.length > 3 ? ev.raw.shift_name.substring(0, 3) + '.' : ev.raw.shift_name;
+                                        text = getScheduleCellLabel(ev.status, false, ev.raw.shift_name);
                                     }
                                 }
 

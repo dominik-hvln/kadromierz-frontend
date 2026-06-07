@@ -94,9 +94,15 @@ export default function SchedulesPage() {
                        title += ` - ${s.users?.first_name} ${s.users?.last_name}`;
                    }
 
+                   const absencePrefix =
+                       s.status === 'on_leave'
+                           ? (s.requires_replacement ? '[URLOP/zast.] ' : '[URLOP] ')
+                           : s.status === 'sick_leave' || s.status === 'replacement_needed'
+                               ? '[L4/zast.] '
+                               : '';
                    return {
                        id: s.id,
-                       title: s.status === 'replacement_needed' ? `[NIEB/L4] ${title}` : title,
+                       title: `${absencePrefix}${title}`,
                        start: startDate,
                        end: endDate,
                        status: s.status,
@@ -149,8 +155,10 @@ export default function SchedulesPage() {
 
     const eventStyleGetter = (event: any, start: Date, end: Date, isSelected: boolean) => {
         let backgroundColor = '#3174ad';
-        if (event.status === 'replacement_needed') {
-            backgroundColor = '#e11d48'; // bg-rose-600
+        if (event.status === 'on_leave') {
+            backgroundColor = '#7c3aed';
+        } else if (event.status === 'sick_leave' || event.status === 'replacement_needed') {
+            backgroundColor = '#e11d48';
         } else if (event.status === 'holiday') {
             backgroundColor = '#f59e0b'; // bg-amber-500
         }

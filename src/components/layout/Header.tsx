@@ -67,7 +67,7 @@ export default function Header() {
         // Header jest teraz "przezroczysty" i dopasowuje się do tła
         <header className="p-4 py-6 lg:p-8 flex justify-between items-center">
             {/* Hamburger Menu widoczne tylko na mobile */}
-            <div className="md:hidden">
+            <div className="md:hidden flex items-center gap-3">
                 <Sheet>
                     <SheetTrigger asChild>
                         <Button variant="outline" size="icon">
@@ -79,6 +79,8 @@ export default function Header() {
                         <Sidebar isMobile={true} />
                     </SheetContent>
                 </Sheet>
+                <img src="/logo.png" alt="Effixy" className="h-8 w-8" />
+                <span className="font-semibold text-lg">Effixy</span>
             </div>
 
             {/* Pusta przestrzeń po lewej na desktopie (na przyszłą wyszukiwarkę) */}

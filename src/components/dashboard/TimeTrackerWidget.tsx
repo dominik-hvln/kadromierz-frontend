@@ -13,8 +13,14 @@ import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capac
 import type { AxiosError } from 'axios';
 import { TimeEntryCard } from './TimeEntryCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScanConfirmDialog, SWITCH_TASK_CONFIRM } from './ScanConfirmDialog';
+import {
+    formatCooldown,
+    getCooldownRemainingMs,
+    isScanOnCooldown,
+    markScanPerformed,
+} from '@/lib/scan-cooldown';
 
-// Definicje typów
 interface Task {
     id: string;
     name: string;
@@ -30,11 +36,9 @@ interface OfflineScan {
     qrCodeValue: string;
     location: { latitude: number; longitude: number } | null;
     timestamp: string;
-    id: string; // klucz w Preferences przy trybie offline
+    id: string;
 }
 
-// --- Normalizacja kształtu wpisu z API (bez `any`) ---
-// Dopuszczamy różne kształty nazw pól z backendu i mapujemy je na TimeEntry
 type RawEntry = {
     id: string;
     start_time?: string;
@@ -44,6 +48,10 @@ type RawEntry = {
     task?: { id?: string | null; name?: string } | null;
     taskName?: string;
 };
+
+type PendingAction =
+    | { type: 'scan'; code: string }
+    | { type: 'switch'; taskId: string };
 
 const normalizeEntry = (e: unknown): TimeEntry | null => {
     if (!e || typeof e !== 'object') return null;
@@ -79,21 +87,33 @@ const normalizeEntry = (e: unknown): TimeEntry | null => {
     return { id, start_time, task_id, task } as TimeEntry;
 };
 
-const SCAN_COOLDOWN_MS = 1500; // ochrona przed dublami
-
 function TimeTrackerWidget() {
     const [isNative, setIsNative] = useState(false);
     const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
     const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isScanning, setIsScanning] = useState(false); // natywny stan skanera (lock)
+    const [isScanning, setIsScanning] = useState(false);
+    const [cooldownMs, setCooldownMs] = useState(0);
 
-    // Refs do anty-dubla
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmTitle, setConfirmTitle] = useState('');
+    const [confirmMessage, setConfirmMessage] = useState('');
     const lastScanRef = useRef<{ value: string; at: number } | null>(null);
-    const nativeScanLockRef = useRef(false); // natychmiastowy lock na iOS/Android
+    const nativeScanLockRef = useRef(false);
+    const pendingActionRef = useRef<PendingAction | null>(null);
 
-    // --- 1. POBIERANIE DANYCH ---
+    const refreshCooldown = useCallback(async () => {
+        const remaining = await getCooldownRemainingMs();
+        setCooldownMs(remaining);
+    }, []);
+
+    useEffect(() => {
+        void refreshCooldown();
+        const interval = setInterval(() => { void refreshCooldown(); }, 1000);
+        return () => clearInterval(interval);
+    }, [refreshCooldown]);
+
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -112,7 +132,6 @@ function TimeTrackerWidget() {
         }
     }, []);
 
-    // --- 2. SYNCHRONIZACJA OFFLINE ---
     const isSyncingRef = useRef(false);
     const syncOfflineScans = useCallback(async (showToast = true) => {
         if (isSyncingRef.current) return;
@@ -129,22 +148,22 @@ function TimeTrackerWidget() {
                     const scanData: OfflineScan = JSON.parse(value);
                     await api.post('/time-entries/scan', scanData);
                     await Preferences.remove({ key });
+                    await markScanPerformed();
                 } catch (e) {
                     console.warn('Błąd synchronizacji wpisu', key, e);
                 }
             }
             if (showToast) toast.success('Synchronizacja offline zakończona.');
             await fetchData();
+            await refreshCooldown();
         } finally {
             isSyncingRef.current = false;
         }
-    }, [fetchData]);
+    }, [fetchData, refreshCooldown]);
 
-    // --- 3. EFFECT ---
     useEffect(() => {
         setIsNative(Capacitor.isNativePlatform());
         fetchData();
-        // uruchom sync po odzyskaniu sieci
         const networkListenerPromise = Network.addListener('networkStatusChange', async (status) => {
             if (status.connected) await syncOfflineScans(false);
         });
@@ -153,34 +172,21 @@ function TimeTrackerWidget() {
         };
     }, [fetchData, syncOfflineScans]);
 
-    // --- 4. OBSŁUGA SKANU ---
-    const handleScanResult = async (code: string) => {
-        if (!code) return;
-
-        // globalna anty-powtórka (web + native)
-        const now = Date.now();
-        const last = lastScanRef.current;
-        if (last && last.value === code && now - last.at < SCAN_COOLDOWN_MS) {
-            return;
-        }
-        lastScanRef.current = { value: code, at: now };
-
-        if (isSubmitting) return;
-        setIsSubmitting(true);
-
-        // spróbuj pobrać lokalizację (opcjonalna)
-        let location: { latitude: number; longitude: number } | null = null;
+    const getLocation = async () => {
+        if (!Capacitor.isNativePlatform()) return null;
         try {
-            if (Capacitor.isNativePlatform()) {
-                await Geolocation.requestPermissions();
-                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
-                location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-            }
+            await Geolocation.requestPermissions();
+            const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+            return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
         } catch (e) {
             console.warn('[GPS] Nie udało się pobrać lokalizacji:', e);
+            return null;
         }
+    };
 
-        // payload zgodny z backendem
+    const executeScan = async (code: string) => {
+        setIsSubmitting(true);
+        const location = await getLocation();
         const scanData: OfflineScan = {
             qrCodeValue: code,
             location,
@@ -194,6 +200,9 @@ function TimeTrackerWidget() {
             const raw = response?.data?.entry ?? response?.data?.newEntry ?? null;
             const entry = normalizeEntry(raw);
 
+            await markScanPerformed();
+            await refreshCooldown();
+
             if (status === 'clock_in') {
                 setActiveEntry(entry);
                 toast.success(entry?.task ? 'Rozpoczęto pracę nad zleceniem!' : 'Dzień pracy rozpoczęty.');
@@ -205,9 +214,14 @@ function TimeTrackerWidget() {
             }
         } catch (err) {
             const axiosError = err as AxiosError<unknown, unknown>;
+            if (axiosError.response?.status === 429) {
+                const msg = (axiosError.response.data as { message?: string })?.message;
+                toast.error('Zbyt szybko', { description: msg || 'Poczekaj przed kolejnym skanowaniem.' });
+                await refreshCooldown();
+                return;
+            }
             const net = await Network.getStatus();
             if (!net.connected || !axiosError.response) {
-                // zapisz offline i zaktualizuj UI orientacyjnie
                 await Preferences.set({ key: scanData.id, value: JSON.stringify(scanData) });
                 toast.info('Brak połączenia. Zapisano wpis offline.');
                 if (!activeEntry) {
@@ -220,20 +234,105 @@ function TimeTrackerWidget() {
                 toast.error('Błąd serwera', { description: msg || 'Nie udało się zarejestrować czasu.' });
             }
         } finally {
-            // krótki cooldown, aby zapobiec dublom
-            setTimeout(() => setIsSubmitting(false), 800);
+            setTimeout(() => setIsSubmitting(false), 500);
         }
     };
 
-    // --- 5. SCAN: NATIVE (z twardym lockiem, by nie uruchomić 2x) ---
+    const executeSwitchTask = async (taskId: string) => {
+        setIsSubmitting(true);
+        const location = await getLocation();
+        try {
+            const response = await api.post('/time-entries/switch-task', { taskId, location });
+            const raw = response?.data?.entry ?? response?.data?.newEntry ?? null;
+            const newEntry = normalizeEntry(raw);
+            setActiveEntry(newEntry);
+            await markScanPerformed();
+            await refreshCooldown();
+            toast.success('Rozpoczęto nowe zlecenie!');
+        } catch (err) {
+            const axiosError = err as AxiosError<unknown, unknown>;
+            if (axiosError.response?.status === 429) {
+                const msg = (axiosError.response.data as { message?: string })?.message;
+                toast.error('Zbyt szybko', { description: msg || 'Poczekaj przed kolejną akcją.' });
+                await refreshCooldown();
+                return;
+            }
+            const msg = (axiosError.response?.data as { message?: string } | undefined)?.message;
+            toast.error('Nie udało się przełączyć zlecenia.', { description: msg });
+        } finally {
+            setTimeout(() => setIsSubmitting(false), 500);
+        }
+    };
+
+    const handleConfirm = async () => {
+        const action = pendingActionRef.current;
+        setConfirmOpen(false);
+        pendingActionRef.current = null;
+        if (!action) return;
+
+        if (action.type === 'scan') {
+            await executeScan(action.code);
+        } else {
+            await executeSwitchTask(action.taskId);
+        }
+    };
+
+    const handleCancelConfirm = () => {
+        setConfirmOpen(false);
+        pendingActionRef.current = null;
+    };
+
+    const guardAction = async (): Promise<boolean> => {
+        if (await isScanOnCooldown()) {
+            const remaining = await getCooldownRemainingMs();
+            toast.info('Blokada skanowania', {
+                description: `Możesz ponownie skanować za ${formatCooldown(remaining)}.`,
+            });
+            return false;
+        }
+        if (isSubmitting) return false;
+        return true;
+    };
+
+    const openScanConfirm = async (code: string) => {
+        if (!(await guardAction())) return;
+
+        const now = Date.now();
+        const last = lastScanRef.current;
+        if (last && last.value === code && now - last.at < 3000) return;
+        lastScanRef.current = { value: code, at: now };
+
+        try {
+            const preview = await api.post('/time-entries/scan/preview', { qrCodeValue: code });
+            const action: PendingAction = { type: 'scan', code };
+            pendingActionRef.current = action;
+            setConfirmTitle(preview.data.title);
+            setConfirmMessage(preview.data.message);
+            setConfirmOpen(true);
+        } catch (err) {
+            const axiosError = err as AxiosError<unknown, unknown>;
+            const msg = (axiosError.response?.data as { message?: string })?.message;
+            toast.error('Nieprawidłowy kod', { description: msg || 'Nie rozpoznano kodu QR.' });
+        }
+    };
+
+    const openSwitchConfirm = async (taskId: string) => {
+        if (!taskId || !(await guardAction())) return;
+        const action: PendingAction = { type: 'switch', taskId };
+        pendingActionRef.current = action;
+        setConfirmTitle(SWITCH_TASK_CONFIRM.title);
+        setConfirmMessage(SWITCH_TASK_CONFIRM.message);
+        setConfirmOpen(true);
+    };
+
     const startNativeScan = async () => {
-        if (nativeScanLockRef.current || isSubmitting) return;
+        if (nativeScanLockRef.current || isSubmitting || cooldownMs > 0) return;
         nativeScanLockRef.current = true;
         setIsScanning(true);
         try {
             const res = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.QR_CODE });
             const code = (res as unknown as { ScanResult?: string }).ScanResult || '';
-            if (code) await handleScanResult(code);
+            if (code) await openScanConfirm(code);
         } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
             if (!/cancelled|canceled/i.test(msg)) toast.error('Błąd skanera', { description: msg });
@@ -243,47 +342,20 @@ function TimeTrackerWidget() {
         }
     };
 
-    // --- 6. SCAN: WEB ---
     const handleWebScanSuccess = (result: IDetectedBarcode[]) => {
         const code = result?.[0]?.rawValue;
-        if (code) void handleScanResult(code);
+        if (code) void openScanConfirm(code);
     };
+
     const handleWebScanError = (error: unknown) => {
         if (error instanceof Error && !error.message.includes('No QR code found')) {
             console.error('Błąd skanera webowego:', error.message);
         }
     };
 
-    // --- 7. PRZEŁĄCZANIE ZLECENIA Z LISTY ---
-    const handleSwitchTask = async (taskId: string) => {
-        if (!taskId || isSubmitting) return;
-        setIsSubmitting(true);
-        let location: { latitude: number; longitude: number } | null = null;
-        try {
-            if (Capacitor.isNativePlatform()) {
-                const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
-                location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-            }
-        } catch (e) {
-            console.warn('[GPS] (switch) Nie udało się pobrać lokalizacji:', e);
-        }
+    const isBlocked = isSubmitting || isScanning || cooldownMs > 0;
+    const cooldownLabel = cooldownMs > 0 ? `Blokada: ${formatCooldown(cooldownMs)}` : null;
 
-        try {
-            const response = await api.post('/time-entries/switch-task', { taskId, location });
-            const raw = response?.data?.entry ?? response?.data?.newEntry ?? null;
-            const newEntry = normalizeEntry(raw);
-            setActiveEntry(newEntry);
-            toast.success('Rozpoczęto nowe zlecenie!');
-        } catch (err) {
-            const axiosError = err as AxiosError<unknown, unknown>;
-            const msg = (axiosError.response?.data as { message?: string } | undefined)?.message;
-            toast.error('Nie udało się przełączyć zlecenia.', { description: msg });
-        } finally {
-            setTimeout(() => setIsSubmitting(false), 800);
-        }
-    };
-
-    // --- 8. RENDEROWANIE ---
     if (isLoading) {
         return (
             <div className="glassmorphism-box p-6 flex items-center justify-center min-h-[200px]">
@@ -292,70 +364,86 @@ function TimeTrackerWidget() {
         );
     }
 
-    // Widok: NIE W PRACY
-    if (!activeEntry) {
-        return (
-            <div className="glassmorphism-box p-6 flex flex-col items-center justify-center min-h-[300px]">
-                <h1 className="text-2xl font-bold mb-6 text-center">Gotowy do pracy?</h1>
-                {isNative ? (
-                    <Button onClick={startNativeScan} className="h-16 text-xl w-full max-w-xs" disabled={isSubmitting || isScanning}>
-                        {isSubmitting || isScanning ? 'Przetwarzanie…' : 'Skanuj Kod QR'}
-                    </Button>
-                ) : (
-                    <div className="w-full max-w-sm border-2 border-dashed rounded-lg p-2">
-                        <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} constraints={{ facingMode: 'environment' }} allowMultiple={false} />
-                        <p className="text-xs text-muted-foreground mt-2">Zeskanuj kod zlecenia lub kod ogólny (np. „Biuro”).</p>
-                    </div>
-                )}
-            </div>
-        );
-    }
+    return (
+        <>
+            <ScanConfirmDialog
+                open={confirmOpen}
+                title={confirmTitle}
+                message={confirmMessage}
+                onConfirm={() => { void handleConfirm(); }}
+                onCancel={handleCancelConfirm}
+            />
 
-    // Widok: W PRACY — OGÓLNY (bez task_id)
-    if (activeEntry && !activeEntry.task_id) {
-        return (
-            <div className="glassmorphism-box p-6 space-y-6">
-                <TimeEntryCard entry={activeEntry} />
-                <div className="space-y-2">
-                    <p className="text-sm">Wybierz zlecenie, aby zacząć nad nim pracę:</p>
-                    <Select onValueChange={handleSwitchTask} disabled={isSubmitting}>
-                        <SelectTrigger className="w-full"><SelectValue placeholder="Wybierz zlecenie" /></SelectTrigger>
-                        <SelectContent>
-                            {availableTasks.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>{t.name} ({t.project?.name || 'Brak proj.'})</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+            {!activeEntry ? (
+                <div className="glassmorphism-box p-6 flex flex-col items-center justify-center min-h-[300px]">
+                    <h1 className="text-2xl font-bold mb-6 text-center">Gotowy do pracy?</h1>
+                    {cooldownLabel && (
+                        <p className="text-sm text-muted-foreground mb-4">{cooldownLabel}</p>
+                    )}
+                    {isNative ? (
+                        <Button onClick={startNativeScan} className="h-16 text-xl w-full max-w-xs" disabled={isBlocked}>
+                            {isSubmitting || isScanning ? 'Przetwarzanie…' : cooldownLabel ?? 'Skanuj Kod QR'}
+                        </Button>
+                    ) : (
+                        <div className="w-full max-w-sm border-2 border-dashed rounded-lg p-2">
+                            {!isBlocked ? (
+                                <WebScanner
+                                    onScan={handleWebScanSuccess}
+                                    onError={handleWebScanError}
+                                    constraints={{ facingMode: 'environment' }}
+                                    allowMultiple={false}
+                                />
+                            ) : (
+                                <p className="text-center text-sm text-muted-foreground py-8">
+                                    {cooldownLabel ?? 'Przetwarzanie…'}
+                                </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-2">Zeskanuj kod zlecenia lub kod ogólny (np. „Biuro”).</p>
+                        </div>
+                    )}
                 </div>
-
-                <div>
-                    <p className="text-xs text-muted-foreground mb-2">Lub zakończ dzień pracy, skanując kod ogólny:</p>
-                    <Button onClick={isNative ? startNativeScan : undefined} className="w-full" variant="secondary" disabled={isSubmitting || isScanning}>
-                        {isSubmitting || isScanning ? 'Przetwarzanie…' : 'Zeskanuj kod ogólny'}
+            ) : !activeEntry.task_id ? (
+                <div className="glassmorphism-box p-6 space-y-6">
+                    <TimeEntryCard entry={activeEntry} />
+                    {cooldownLabel && <p className="text-sm text-muted-foreground">{cooldownLabel}</p>}
+                    <div className="space-y-2">
+                        <p className="text-sm">Wybierz zlecenie, aby zacząć nad nim pracę:</p>
+                        <Select onValueChange={(v) => { void openSwitchConfirm(v); }} disabled={isBlocked}>
+                            <SelectTrigger className="w-full"><SelectValue placeholder="Wybierz zlecenie" /></SelectTrigger>
+                            <SelectContent>
+                                {availableTasks.map((t) => (
+                                    <SelectItem key={t.id} value={t.id}>{t.name} ({t.project?.name || 'Brak proj.'})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-2">Lub zakończ dzień pracy, skanując kod ogólny:</p>
+                        <Button onClick={isNative ? startNativeScan : undefined} className="w-full" variant="secondary" disabled={isBlocked}>
+                            {isSubmitting || isScanning ? 'Przetwarzanie…' : cooldownLabel ?? 'Zeskanuj kod ogólny'}
+                        </Button>
+                        {!isNative && !isBlocked && (
+                            <div className="mt-4">
+                                <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} constraints={{ facingMode: 'environment' }} allowMultiple={false} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="glassmorphism-box p-6 space-y-6">
+                    <TimeEntryCard entry={activeEntry} />
+                    {cooldownLabel && <p className="text-sm text-muted-foreground">{cooldownLabel}</p>}
+                    <Button onClick={isNative ? startNativeScan : undefined} className="w-full mt-6" variant="destructive" disabled={isBlocked}>
+                        {isSubmitting || isScanning ? 'Przetwarzanie…' : cooldownLabel ?? 'Zakończ zlecenie (Zeskanuj QR)'}
                     </Button>
-                    {!isNative && (
+                    {!isNative && !isBlocked && (
                         <div className="mt-4">
                             <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} constraints={{ facingMode: 'environment' }} allowMultiple={false} />
                         </div>
                     )}
                 </div>
-            </div>
-        );
-    }
-
-    // Widok: W PRACY — KONKRETNE ZLECENIE (ma task_id)
-    return (
-        <div className="glassmorphism-box p-6 space-y-6">
-            <TimeEntryCard entry={activeEntry} />
-            <Button onClick={isNative ? startNativeScan : undefined} className="w-full mt-6" variant="destructive" disabled={isSubmitting || isScanning}>
-                {isSubmitting || isScanning ? 'Przetwarzanie…' : 'Zakończ zlecenie (Zeskanuj QR)'}
-            </Button>
-            {!isNative && (
-                <div className="mt-4">
-                    <WebScanner onScan={handleWebScanSuccess} onError={handleWebScanError} constraints={{ facingMode: 'environment' }} allowMultiple={false} />
-                </div>
             )}
-        </div>
+        </>
     );
 }
 

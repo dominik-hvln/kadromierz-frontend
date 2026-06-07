@@ -211,8 +211,11 @@ export default function LoginPage() {
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <Card className="w-full max-w-sm">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">Zaloguj się</CardTitle>
-                    <CardDescription>Witaj! Podaj swoje dane.</CardDescription>
+                    <div className="flex justify-center mb-2">
+                        <img src="/logo.png" alt="Effixy" className="h-14 w-14" />
+                    </div>
+                    <CardTitle className="text-2xl">Effixy</CardTitle>
+                    <CardDescription>Zaloguj się do swojego konta</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit}>

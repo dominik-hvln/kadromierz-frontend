@@ -36,6 +36,8 @@ interface TimeEntry {
     id: string;
     start_time: string;
     end_time: string | null;
+    actual_start_time?: string | null;
+    is_schedule_adjusted?: boolean;
     user: { first_name: string; last_name: string };
     project: { name: string };
     task: { name: string };
@@ -43,6 +45,12 @@ interface TimeEntry {
     is_outside_geofence: boolean;
     is_manual: boolean;
     manual_comment: string | null;
+}
+
+interface TimeSummary {
+    timeEntryMinutes: number;
+    absenceMinutes: number;
+    totalMinutes: number;
 }
 interface User { 
     id: string; 
@@ -71,6 +79,7 @@ export default function TimeEntriesPage() {
     const [deleteReason, setDeleteReason] = useState('');
     const [isAddManualOpen, setIsAddManualOpen] = useState(false);
     const [ftes, setFtes] = useState<FTE[]>([]);
+    const [summary, setSummary] = useState<TimeSummary | null>(null);
     const { user } = useAuthStore();
     const isEmployee = user?.role === 'employee';
 
@@ -88,8 +97,14 @@ export default function TimeEntriesPage() {
         }, 0);
     }, [entries]);
 
-    const totalHours = Math.floor(totalDurationMinutes / 60);
-    const totalMinutes = totalDurationMinutes % 60;
+    const absenceMinutes = summary?.absenceMinutes ?? 0;
+    const grandTotalMinutes = summary?.totalMinutes ?? totalDurationMinutes;
+    const totalHours = Math.floor(grandTotalMinutes / 60);
+    const totalMinutes = grandTotalMinutes % 60;
+    const trackedHours = Math.floor(totalDurationMinutes / 60);
+    const trackedMinutes = totalDurationMinutes % 60;
+    const absenceHours = Math.floor(absenceMinutes / 60);
+    const absenceMins = absenceMinutes % 60;
 
     const handleExportCSV = () => {
         const headers = "Pracownik;Projekt;Zlecenie;Data Rozpoczęcia;Czas Rozpoczęcia;Data Zakończenia;Czas Zakończenia;Czas Trwania (min)\n";
@@ -183,7 +198,8 @@ export default function TimeEntriesPage() {
             doc.setFontSize(12);
 
             // Ta linia teraz zadziała poprawnie
-            doc.text(`Łączny czas pracy: ${totalHours}h ${totalMinutes}m`, 14, finalY + 10);
+            const absenceLine = absenceMinutes > 0 ? ` (w tym urlop/L4: ${absenceHours}h ${absenceMins}m)` : '';
+            doc.text(`Łączny czas pracy: ${totalHours}h ${totalMinutes}m${absenceLine}`, 14, finalY + 10);
 
             doc.save('raport_czasu_pracy.pdf');
 
@@ -203,8 +219,12 @@ export default function TimeEntriesPage() {
                 params.append('userId', selectedUserId);
             }
 
-            const response = await api.get(`/time-entries?${params.toString()}`);
-            setEntries(response.data);
+            const [entriesRes, summaryRes] = await Promise.all([
+                api.get(`/time-entries?${params.toString()}`),
+                api.get(`/time-entries/summary?${params.toString()}`),
+            ]);
+            setEntries(entriesRes.data);
+            setSummary(summaryRes.data);
         } catch (error: unknown) {
             console.error('Błąd fetchTimeEntries:', error);
             const errorMessage = error instanceof Error ? error.message : 'Nie udało się pobrać ewidencji.';
@@ -270,7 +290,7 @@ export default function TimeEntriesPage() {
         expectedHours = workingDays * 8 * selectedFte.multiplier;
     }
 
-    const overtimeHours = totalDurationMinutes / 60 - expectedHours;
+    const overtimeHours = grandTotalMinutes / 60 - expectedHours;
     const overtimeMinutes = Math.abs(totalDurationMinutes % 60);
     const expectedHoursWhole = Math.floor(expectedHours);
     const expectedMinutes = Math.round((expectedHours - expectedHoursWhole) * 60);
@@ -372,8 +392,12 @@ export default function TimeEntriesPage() {
                             <Clock className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-gray-500">Wypracowany czas</p>
+                            <p className="text-sm font-medium text-gray-500">Wypracowany czas (łącznie)</p>
                             <p className="text-2xl font-bold text-gray-900">{totalHours}h {totalMinutes}m</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Rejestracja: {trackedHours}h {trackedMinutes}m
+                                {absenceMinutes > 0 && ` · Urlop/L4: ${absenceHours}h ${absenceMins}m`}
+                            </p>
                         </div>
                     </div>
 
@@ -418,7 +442,7 @@ export default function TimeEntriesPage() {
                                     <div>
                                         <p className="text-sm font-medium text-gray-500">Estymowane wynagrodzenie</p>
                                         <p className="text-2xl font-bold text-gray-900">
-                                            {((totalDurationMinutes / 60) * Number(selectedUserObj.hourly_rate)).toFixed(2)} PLN
+                                            {((grandTotalMinutes / 60) * Number(selectedUserObj.hourly_rate)).toFixed(2)} PLN
                                         </p>
                                         <p className="text-xs text-gray-500 mt-1">Stawka: {selectedUserObj.hourly_rate} PLN/h</p>
                                     </div>
@@ -450,6 +474,9 @@ export default function TimeEntriesPage() {
                                         <div className="flex items-center gap-1"> {/* Zmniejszony odstęp */}
                                             <span>{entry.user.first_name} {entry.user.last_name}</span>
                                             {entry.was_edited && <Badge variant="outline" className="ml-1 px-1 text-xs">Edyt.</Badge>}
+                                            {entry.is_schedule_adjusted && (
+                                                <Badge variant="outline" className="ml-1 px-1 text-xs">Grafik</Badge>
+                                            )}
                                             {entry.is_manual && (
                                                 <TooltipProvider delayDuration={100}>
                                                     <Tooltip>

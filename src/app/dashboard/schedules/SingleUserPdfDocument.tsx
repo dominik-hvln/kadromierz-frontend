@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getScheduleStatusText } from '@/lib/schedule-display';
 
 // Podpinamy tę samą bezpieczną czcionkę wektorową
 Font.register({
@@ -172,12 +173,15 @@ export const SingleUserPdfDocument = ({ month, year, events, holidays, user }: P
                   textStyle = styles.textCellHoliday;
                   status = `WOLNE (${isHoliday.name || ''})`;
               } else if (ev) {
-                  if (ev.status === 'replacement_needed') {
-                      status = 'L4 / Urlop';
-                  } else {
-                      status = ev.raw.shift_name;
-                      hours = `${ev.raw.start_time.substring(0, 5)} - ${ev.raw.end_time.substring(0, 5)}`;
-                  }
+                  const display = getScheduleStatusText(
+                      ev.status,
+                      ev.raw?.requires_replacement,
+                      ev.raw?.shift_name,
+                      ev.raw?.start_time,
+                      ev.raw?.end_time,
+                  );
+                  status = display.status;
+                  hours = display.hours;
               } else if (isWeekend) {
                   rowStyle = { ...styles.tableRow, ...styles.bgWeekend };
                   textStyle = styles.textCellWeekend;

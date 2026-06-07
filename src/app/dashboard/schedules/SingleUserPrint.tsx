@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { getDaysInMonth, format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getScheduleStatusText } from '@/lib/schedule-display';
 
 interface SingleUserPrintProps {
     month: number;
@@ -55,12 +56,15 @@ export default function SingleUserPrint({ month, year, events, holidays, user }:
                         if (isHoliday) {
                             status = `🎈 WOLNE (${isHoliday.name})`;
                         } else if (ev) {
-                            if (ev.status === 'replacement_needed') {
-                                status = 'L4 / Urlop';
-                            } else {
-                                status = ev.raw.shift_name;
-                                hours = `${ev.raw.start_time.substring(0, 5)} - ${ev.raw.end_time.substring(0, 5)}`;
-                            }
+                            const display = getScheduleStatusText(
+                                ev.status,
+                                ev.raw?.requires_replacement,
+                                ev.raw?.shift_name,
+                                ev.raw?.start_time,
+                                ev.raw?.end_time,
+                            );
+                            status = display.status;
+                            hours = display.hours;
                         } else if (isWeekend) {
                             status = 'Wolny Weekend';
                         }
@@ -78,7 +82,7 @@ export default function SingleUserPrint({ month, year, events, holidays, user }:
             </table>
             
             <div className="mt-16 flex justify-between text-sm text-gray-400">
-                <p>Wygenerowano operacyjnie z Systemu Czasu Pracy</p>
+                <p>Wygenerowano operacyjnie z systemu Effixy</p>
                 <p>Miejsce na podpis pracownika: ..............................</p>
             </div>
         </div>

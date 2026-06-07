@@ -1,4 +1,7 @@
 {
+  "name": "Effixy",
+  "short_name": "Effixy",
+  "description": "Zarządzanie czasem pracy w terenie",
   "icons": [
     {
       "src": "../icons/icon-48.webp",
@@ -42,5 +45,6 @@
       "sizes": "512x512",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "background_color": "#000000"
 }

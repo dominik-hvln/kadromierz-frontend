@@ -1,38 +1,30 @@
-# Zależności (Dependencies)
-# Nigdy nie dodajemy do repozytorium folderu z zależnościami.
-# Jest on generowany automatycznie na podstawie plików package.json.
-node_modules/
+# Frontend (Next.js + Capacitor) — uzupełnienie root .gitignore
 
-# Pliki logów i tymczasowe
-# Pliki generowane podczas pracy aplikacji, nie są częścią kodu źródłowego.
-logs
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-.pnpm-store
-
-# Pliki buildów (Build artifacts)
-# Skompilowany kod, który jest wynikiem naszej pracy, a nie jej źródłem.
-# NestJS (backend) domyślnie buduje do folderu /dist.
-# Next.js (frontend) domyślnie buduje do folderu /.next.
-dist
+# Build Next.js / statyczny export dla Capacitor
 .next/
 out/
 build/
 
-# Pliki środowiskowe (Environment variables)
-# BARDZO WAŻNE: Te pliki zawierają hasła i klucze API. Nigdy nie mogą trafić do repozytorium!
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
+# Zależności
+node_modules/
 
-# Pliki specyficzne dla systemów operacyjnych
-# Pliki generowane automatycznie przez macOS, Windows, Linux.
+# Env
+.env
+.env.*
+!.env.example
+
+# Keystore (podpis APK/AAB)
+*.jks
+*.keystore
+
+# Debug / cache
+*.log
+.turbo/
+.vercel/
+
+# OS
 .DS_Store
-Thumbs.db
+
+# TypeScript (generowany lokalnie — odbuduje się przy `next dev`)
+# Odkomentuj poniższą linię, jeśli nie chcesz commitować next-env.d.ts:
+# next-env.d.ts
