@@ -6,7 +6,8 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import AuthBrandHeader from '@/components/layout/AuthBrandHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AxiosError } from 'axios';
@@ -210,13 +211,7 @@ export default function LoginPage() {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <Card className="w-full max-w-sm">
-                <CardHeader className="text-center">
-                    <div className="flex justify-center mb-2">
-                        <img src="/logo.png" alt="Effixy" className="h-14 w-14" />
-                    </div>
-                    <CardTitle className="text-2xl">Effixy</CardTitle>
-                    <CardDescription>Zaloguj się do swojego konta</CardDescription>
-                </CardHeader>
+                <AuthBrandHeader description="Zaloguj się do swojego konta" />
                 <CardContent>
                     <form onSubmit={handleSubmit}>
                         <div className="grid gap-4">

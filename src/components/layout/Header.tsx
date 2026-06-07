@@ -22,6 +22,7 @@ import { pl } from 'date-fns/locale';
 
 // Importujemy Sidebar (dla wersji mobilnej) oraz listę linków
 import Sidebar, { navLinks } from './Sidebar';
+import BrandLogo from '@/components/layout/BrandLogo';
 
 export default function Header() {
     const { user, logout } = useAuthStore();
@@ -79,8 +80,7 @@ export default function Header() {
                         <Sidebar isMobile={true} />
                     </SheetContent>
                 </Sheet>
-                <img src="/logo.png" alt="Effixy" className="h-8 w-8" />
-                <span className="font-semibold text-lg">Effixy</span>
+                <BrandLogo variant="header" href="/dashboard" />
             </div>
 
             {/* Pusta przestrzeń po lewej na desktopie (na przyszłą wyszukiwarkę) */}

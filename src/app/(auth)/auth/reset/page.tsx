@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import AuthBrandHeader from '@/components/layout/AuthBrandHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
@@ -93,10 +94,10 @@ export default function ResetPasswordPage() {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Card className="w-full max-w-sm">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-2xl">Hasło zmienione 🎉</CardTitle>
-                        <CardDescription>Możesz zalogować się nowym hasłem.</CardDescription>
-                    </CardHeader>
+                    <AuthBrandHeader
+                        title="Hasło zmienione 🎉"
+                        description="Możesz zalogować się nowym hasłem."
+                    />
                     <CardContent className="space-y-3">
                         <Button asChild className="w-full">
                             <Link href="/">Przejdź do logowania</Link>
@@ -111,10 +112,10 @@ export default function ResetPasswordPage() {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Card className="w-full max-w-sm">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-2xl">Link nie działa</CardTitle>
-                        <CardDescription>{err || 'Token jest nieprawidłowy lub wygasł.'}</CardDescription>
-                    </CardHeader>
+                    <AuthBrandHeader
+                        title="Link nie działa"
+                        description={err || 'Token jest nieprawidłowy lub wygasł.'}
+                    />
                     <CardContent className="space-y-3">
                         <Button asChild variant="secondary" className="w-full">
                             <Link href="/auth/forgot">Wyślij link ponownie</Link>
@@ -129,10 +130,10 @@ export default function ResetPasswordPage() {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Card className="w-full max-w-sm">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">Ustaw nowe hasło</CardTitle>
-                    <CardDescription>Wprowadź nowe, silne hasło.</CardDescription>
-                </CardHeader>
+                <AuthBrandHeader
+                    title="Ustaw nowe hasło"
+                    description="Wprowadź nowe, silne hasło."
+                />
                 <CardContent>
                     <form onSubmit={onSubmit} className="space-y-4">
                         <div className="space-y-2">

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Building2, Layers, Users, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
+import BrandLogo from '@/components/layout/BrandLogo';
 
 export default function AdminSidebar() {
     const pathname = usePathname();
@@ -28,9 +29,8 @@ export default function AdminSidebar() {
     return (
         <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen">
             <div className="p-6 border-b border-slate-700">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                    Admin Panel
-                </h1>
+                <BrandLogo variant="sidebar" href="/admin" className="brightness-0 invert" />
+                <p className="text-xs text-slate-400 mt-2">Panel administracyjny</p>
             </div>
 
             <nav className="flex-1 p-4 space-y-2">

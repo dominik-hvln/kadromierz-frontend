@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import AuthBrandHeader from '@/components/layout/AuthBrandHeader';
 import Link from 'next/link';
 
 type ViewState = 'loading' | 'ok' | 'error';
@@ -47,10 +48,10 @@ export default function ConfirmEmailPage() {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Card className="w-full max-w-sm">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-2xl">Konto aktywne 🎉</CardTitle>
-                        <CardDescription>Możesz przejść do logowania.</CardDescription>
-                    </CardHeader>
+                    <AuthBrandHeader
+                        title="Konto aktywne 🎉"
+                        description="Możesz przejść do logowania."
+                    />
                     <CardContent className="space-y-3">
                         <Button asChild className="w-full">
                             <Link href="/">Przejdź do logowania</Link>
@@ -69,10 +70,10 @@ export default function ConfirmEmailPage() {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Card className="w-full max-w-sm">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">Nie udało się</CardTitle>
-                    <CardDescription>{message || 'Token jest nieprawidłowy albo wygasł.'}</CardDescription>
-                </CardHeader>
+                <AuthBrandHeader
+                    title="Nie udało się"
+                    description={message || 'Token jest nieprawidłowy albo wygasł.'}
+                />
                 <CardContent className="space-y-3">
                     <Button asChild variant="secondary" className="w-full">
                         <Link href="/">Wróć do logowania</Link>

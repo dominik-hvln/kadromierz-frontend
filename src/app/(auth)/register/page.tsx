@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import AuthBrandHeader from '@/components/layout/AuthBrandHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AxiosError } from 'axios';
@@ -69,12 +70,10 @@ export default function RegisterPage() {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-100">
                 <Card className="w-full max-w-sm">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-2xl">Rejestracja udana!</CardTitle>
-                        <CardDescription>
-                            Wysłaliśmy link aktywacyjny na Twój adres e-mail.
-                        </CardDescription>
-                    </CardHeader>
+                    <AuthBrandHeader
+                        title="Rejestracja udana!"
+                        description="Wysłaliśmy link aktywacyjny na Twój adres e-mail."
+                    />
                     <CardContent>
                         <p className="text-center text-muted-foreground">
                             Proszę, kliknij link w wiadomości, aby aktywować swoje konto. (Sprawdź folder spam!)
@@ -92,10 +91,10 @@ export default function RegisterPage() {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <Card className="w-full max-w-sm">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">Stwórz konto</CardTitle>
-                    <CardDescription>Rozpocznij darmowy okres próbny.</CardDescription>
-                </CardHeader>
+                <AuthBrandHeader
+                    title="Stwórz konto"
+                    description="Rozpocznij darmowy okres próbny."
+                />
                 <CardContent>
                     <form onSubmit={handleSubmit}>
                         <div className="grid gap-4">

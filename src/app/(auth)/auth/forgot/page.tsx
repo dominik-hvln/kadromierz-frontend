@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import AuthBrandHeader from '@/components/layout/AuthBrandHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -36,12 +37,10 @@ export default function ForgotPasswordPage() {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Card className="w-full max-w-sm">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-2xl">Sprawdź skrzynkę 📧</CardTitle>
-                        <CardDescription>
-                            Jeśli konto istnieje, wysłaliśmy e-mail z instrukcją resetu hasła.
-                        </CardDescription>
-                    </CardHeader>
+                    <AuthBrandHeader
+                        title="Sprawdź skrzynkę 📧"
+                        description="Jeśli konto istnieje, wysłaliśmy e-mail z instrukcją resetu hasła."
+                    />
                 </Card>
             </div>
         );
@@ -50,10 +49,10 @@ export default function ForgotPasswordPage() {
     return (
         <div className="flex items-center justify-center min-h-screen">
             <Card className="w-full max-w-sm">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">Reset hasła</CardTitle>
-                    <CardDescription>Podaj adres e-mail powiązany z kontem.</CardDescription>
-                </CardHeader>
+                <AuthBrandHeader
+                    title="Reset hasła"
+                    description="Podaj adres e-mail powiązany z kontem."
+                />
                 <CardContent>
                     <form onSubmit={onSubmit} className="space-y-4">
                         <div className="space-y-2">
