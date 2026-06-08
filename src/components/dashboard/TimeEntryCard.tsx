@@ -1,9 +1,10 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { useEffect, useState } from 'react';
+import { formatTimePl } from '@/lib/datetime';
 
 // Definiujemy dokładny typ dla `entry`
 interface TimeEntryCardProps {
@@ -17,7 +18,7 @@ export function TimeEntryCard({ entry }: TimeEntryCardProps) {
     const [time, setTime] = useState('');
 
     useEffect(() => {
-        const startTime = new Date(entry.start_time);
+        const startTime = parseISO(entry.start_time);
         if (!isNaN(startTime.getTime())) {
             const update = () => setTime(formatDistanceToNow(startTime, { addSuffix: true, locale: pl }));
             update();
@@ -36,7 +37,7 @@ export function TimeEntryCard({ entry }: TimeEntryCardProps) {
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
-                <p>od {new Date(entry.start_time).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}</p>
+                <p>od {formatTimePl(entry.start_time)}</p>
                 <p className="text-sm opacity-80">(upłynęło {time})</p>
             </CardContent>
         </Card>

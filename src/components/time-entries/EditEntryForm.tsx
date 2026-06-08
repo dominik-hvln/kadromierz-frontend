@@ -4,11 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 
 const formSchema = z.object({
     start_time: z.string().min(1, "Data rozpoczęcia jest wymagana."),
@@ -21,34 +21,21 @@ interface EditEntryFormProps {
     onSuccess: () => void;
 }
 
-const formatDateTimeLocal = (dateString: string | null) => {
-    if (!dateString) return '';
-    try {
-        const date = new Date(dateString);
-        // Poprawka uwzględniająca strefę czasową użytkownika
-        const timezoneOffset = date.getTimezoneOffset() * 60000;
-        const localDate = new Date(date.getTime() - timezoneOffset);
-        return localDate.toISOString().slice(0, 16);
-    } catch (e) {
-        return '';
-    }
-};
-
 export function EditEntryForm({ entry, onSuccess }: EditEntryFormProps) {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            start_time: formatDateTimeLocal(entry.start_time),
-            end_time: formatDateTimeLocal(entry.end_time),
-            change_reason: '', // Wartość początkowa
+            start_time: entry.start_time,
+            end_time: entry.end_time,
+            change_reason: '',
         },
     });
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
             const payload: { start_time?: string; end_time?: string | null; change_reason: string } = {
-                start_time: values.start_time ? new Date(values.start_time).toISOString() : undefined,
-                end_time: values.end_time ? new Date(values.end_time).toISOString() : null,
+                start_time: values.start_time || undefined,
+                end_time: values.end_time || null,
                 change_reason: values.change_reason,
             };
 
@@ -67,8 +54,34 @@ export function EditEntryForm({ entry, onSuccess }: EditEntryFormProps) {
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField name="start_time" render={({ field }) => ( <FormItem><FormLabel>Czas rozpoczęcia</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                <FormField name="end_time" render={({ field }) => ( <FormItem><FormLabel>Czas zakończenia</FormLabel><FormControl><Input type="datetime-local" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem> )} />
+                <FormField
+                    name="start_time"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Czas rozpoczęcia</FormLabel>
+                            <FormControl>
+                                <DateTimePicker value={field.value} onChange={field.onChange} label="Wybierz start" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    name="end_time"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Czas zakończenia</FormLabel>
+                            <FormControl>
+                                <DateTimePicker
+                                    value={field.value ?? ''}
+                                    onChange={field.onChange}
+                                    label="Wybierz koniec"
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <FormField
                     control={form.control}
                     name="change_reason"

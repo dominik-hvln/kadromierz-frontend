@@ -25,6 +25,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FileDown, DollarSign, Clock, Target, Hand } from 'lucide-react';
 import { AddManualEntryForm } from '@/components/time-entries/AddManualEntryForm';
+import { formatDateTimePl } from '@/lib/datetime';
 
 interface FTE {
     id: string;
@@ -177,8 +178,8 @@ export default function TimeEntriesPage() {
                 const row = [
                     `${entry.user.first_name} ${entry.user.last_name}`,
                     `${entry.project?.name || '-'} / ${entry.task?.name || 'Ogólny'}`,
-                    new Date(entry.start_time).toLocaleString('pl-PL'),
-                    entry.end_time ? new Date(entry.end_time).toLocaleString('pl-PL') : '-',
+                    formatDateTimePl(entry.start_time),
+                    entry.end_time ? formatDateTimePl(entry.end_time) : '-',
                     formatDuration(entry.start_time, entry.end_time)
                 ];
                 tableRows.push(row);
@@ -507,8 +508,8 @@ export default function TimeEntriesPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell>{entry.project?.name || '-'} / {entry.task?.name || 'Ogólny'}</TableCell> {/* Zabezpieczenie przed null */}
-                                    <TableCell>{new Date(entry.start_time).toLocaleString('pl-PL')}</TableCell>
-                                    <TableCell>{entry.end_time ? new Date(entry.end_time).toLocaleString('pl-PL') : '-'}</TableCell>
+                                    <TableCell>{formatDateTimePl(entry.start_time)}</TableCell>
+                                    <TableCell>{entry.end_time ? formatDateTimePl(entry.end_time) : '-'}</TableCell>
                                     <TableCell className="font-medium">{formatDuration(entry.start_time, entry.end_time)}</TableCell>
                                     {!isEmployee && (
                                         <TableCell className="text-right">

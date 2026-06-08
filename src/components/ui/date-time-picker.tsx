@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    formatWarsawPickerLabel,
+    isoToWarsawParts,
+    warsawWallClockToIso,
+} from "@/lib/datetime";
 
 interface DateTimePickerProps {
   value?: string;
@@ -17,42 +22,41 @@ interface DateTimePickerProps {
 }
 
 export function DateTimePicker({ value, onChange, label }: DateTimePickerProps) {
-  const date = value ? new Date(value) : undefined;
-  
-  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(date);
-  const [hour, setHour] = React.useState<string>(date ? date.getHours().toString().padStart(2, '0') : "08");
-  const [minute, setMinute] = React.useState<string>(date ? date.getMinutes().toString().padStart(2, '0') : "00");
+  const parsed = value ? isoToWarsawParts(value) : null;
+
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
+    parsed ? parseISO(`${parsed.dateStr}T12:00:00`) : undefined,
+  );
+  const [hour, setHour] = React.useState<string>(parsed?.hour ?? "08");
+  const [minute, setMinute] = React.useState<string>(parsed?.minute ?? "00");
 
   React.useEffect(() => {
-    if (value) {
-      const d = new Date(value);
-      if (!isNaN(d.getTime())) {
-        setSelectedDate(d);
-        setHour(d.getHours().toString().padStart(2, '0'));
-        setMinute(d.getMinutes().toString().padStart(2, '0'));
-      }
-    }
+    if (!value) return;
+    const parts = isoToWarsawParts(value);
+    setSelectedDate(parseISO(`${parts.dateStr}T12:00:00`));
+    setHour(parts.hour);
+    setMinute(parts.minute);
   }, [value]);
+
+  const emitChange = (date: Date, h: string, m: string) => {
+    onChange?.(warsawWallClockToIso(date, h, m));
+  };
 
   const handleDateSelect = (newDate: Date | undefined) => {
     setSelectedDate(newDate);
     if (newDate && onChange) {
-      const updatedDate = new Date(newDate);
-      updatedDate.setHours(parseInt(hour));
-      updatedDate.setMinutes(parseInt(minute));
-      onChange(updatedDate.toISOString());
+      emitChange(newDate, hour, minute);
     }
   };
 
   const handleTimeChange = (type: 'hour' | 'minute', val: string) => {
+    const nextHour = type === 'hour' ? val : hour;
+    const nextMinute = type === 'minute' ? val : minute;
     if (type === 'hour') setHour(val);
     if (type === 'minute') setMinute(val);
 
     if (selectedDate && onChange) {
-      const updatedDate = new Date(selectedDate);
-      updatedDate.setHours(parseInt(type === 'hour' ? val : hour));
-      updatedDate.setMinutes(parseInt(type === 'minute' ? val : minute));
-      onChange(updatedDate.toISOString());
+      emitChange(selectedDate, nextHour, nextMinute);
     }
   };
 
@@ -67,12 +71,12 @@ export function DateTimePicker({ value, onChange, label }: DateTimePickerProps) 
             variant={"outline"}
             className={cn(
               "w-full justify-start text-left font-normal h-10",
-              !selectedDate && "text-muted-foreground"
+              !value && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {selectedDate ? (
-              format(selectedDate, "PPP HH:mm", { locale: pl })
+            {value ? (
+              formatWarsawPickerLabel(value)
             ) : (
               <span>{label || "Wybierz datę i godzinę"}</span>
             )}

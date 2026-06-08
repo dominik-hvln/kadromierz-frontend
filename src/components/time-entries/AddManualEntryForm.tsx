@@ -102,18 +102,10 @@ export function AddManualEntryForm({ onSuccess }: AddManualEntryFormProps) {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const start = new Date(values.start_time);
-            const end = new Date(values.end_time);
-
-            if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-                toast.error('Błąd', { description: 'Nieprawidłowy format daty.' });
-                return;
-            }
-
             const payload = {
                 ...values,
-                start_time: start.toISOString(),
-                end_time: end.toISOString(),
+                start_time: values.start_time,
+                end_time: values.end_time,
                 project_id: (values.project_id && values.project_id !== 'none') ? values.project_id : null,
                 task_id: (values.task_id && values.task_id !== 'none') ? values.task_id : null,
             };

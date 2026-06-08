@@ -1,6 +1,6 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import EffixyLogoHorizontal from '@/components/layout/EffixyLogoHorizontal';
 
 type BrandLogoVariant = 'auth' | 'sidebar' | 'header';
 
@@ -14,16 +14,13 @@ interface BrandLogoProps {
     variant?: BrandLogoVariant;
     href?: string;
     className?: string;
+    inverted?: boolean;
 }
 
-export default function BrandLogo({ variant = 'sidebar', href, className }: BrandLogoProps) {
-    const img = (
-        <Image
-            src="/logo-horizontal.png"
-            alt="Effixy"
-            width={320}
-            height={80}
-            priority={variant === 'auth'}
+export default function BrandLogo({ variant = 'sidebar', href, className, inverted }: BrandLogoProps) {
+    const logo = (
+        <EffixyLogoHorizontal
+            inverted={inverted}
             className={cn(variantClass[variant], className)}
         />
     );
@@ -31,12 +28,12 @@ export default function BrandLogo({ variant = 'sidebar', href, className }: Bran
     if (href) {
         return (
             <Link href={href} className="inline-flex items-center shrink-0">
-                {img}
+                {logo}
             </Link>
         );
     }
 
-    return <div className="inline-flex items-center shrink-0">{img}</div>;
+    return <div className="inline-flex items-center shrink-0">{logo}</div>;
 }
 
 export { BrandLogo };

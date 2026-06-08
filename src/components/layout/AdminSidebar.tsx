@@ -29,7 +29,7 @@ export default function AdminSidebar() {
     return (
         <aside className="w-64 bg-slate-900 text-white flex flex-col h-screen">
             <div className="p-6 border-b border-slate-700">
-                <BrandLogo variant="sidebar" href="/admin" className="brightness-0 invert" />
+                <BrandLogo variant="sidebar" href="/admin" inverted />
                 <p className="text-xs text-slate-400 mt-2">Panel administracyjny</p>
             </div>
 
