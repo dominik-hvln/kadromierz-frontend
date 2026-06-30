@@ -1,22 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { superAdminApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Check, X, Shield, Calendar, Settings } from 'lucide-react';
+import { Check, X, Shield, Calendar, Settings, AlertTriangle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
 export default function CompanyDetailsPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params.id as string;
 
     const [company, setCompany] = useState<any>(null);
     const [plans, setPlans] = useState<any[]>([]);
     const [allModules, setAllModules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [confirmName, setConfirmName] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         if (id) fetchData();
@@ -47,6 +51,22 @@ export default function CompanyDetailsPage() {
             fetchData(); // Refresh to show new limits/modules
         } catch (error) {
             toast.error('Błąd zmiany planu');
+        }
+    };
+
+    const handleDeleteCompany = async () => {
+        if (confirmName.trim() !== company.name) {
+            toast.error('Wpisana nazwa nie zgadza się z nazwą firmy.');
+            return;
+        }
+        setDeleting(true);
+        try {
+            const res = await superAdminApi.deleteCompany(id);
+            toast.success(res?.message || 'Firma usunięta');
+            router.push('/admin/companies');
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Błąd usuwania firmy');
+            setDeleting(false);
         }
     };
 
@@ -198,6 +218,38 @@ export default function CompanyDetailsPage() {
                             })}
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* STREFA NIEBEZPIECZNA */}
+            <div className="bg-white p-6 rounded-xl border-2 border-red-200">
+                <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <h2 className="text-lg font-semibold text-red-700">Strefa niebezpieczna</h2>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                    Trwałe usunięcie firmy skasuje <strong>wszystkich pracowników</strong> (konta logowania) oraz
+                    wszystkie dane firmy: ewidencję czasu, grafiki, nieobecności, projekty, raporty, subskrypcję itd.
+                    Tej operacji <strong>nie można cofnąć</strong>.
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Aby potwierdzić, wpisz nazwę firmy: <span className="font-mono text-gray-900">{company.name}</span>
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2 max-w-xl">
+                    <Input
+                        value={confirmName}
+                        onChange={(e) => setConfirmName(e.target.value)}
+                        placeholder="Nazwa firmy"
+                        disabled={deleting}
+                    />
+                    <Button
+                        variant="destructive"
+                        onClick={handleDeleteCompany}
+                        disabled={deleting || confirmName.trim() !== company.name}
+                    >
+                        {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Usuń firmę na zawsze
+                    </Button>
                 </div>
             </div>
         </div>

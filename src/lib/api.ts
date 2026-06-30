@@ -109,6 +109,10 @@ export const superAdminApi = {
         const { data } = await api.post('/super-admin/companies', dto);
         return data;
     },
+    deleteCompany: async (id: string) => {
+        const { data } = await api.delete(`/super-admin/companies/${id}`);
+        return data;
+    },
     // UŻYTKOWNICY
     getUsers: async () => {
         const { data } = await api.get('/super-admin/users');
