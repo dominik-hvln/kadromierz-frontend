@@ -122,6 +122,18 @@ export const superAdminApi = {
         const { data } = await api.post('/super-admin/users', dto);
         return data;
     },
+    setUserActive: async (id: string, active: boolean) => {
+        const { data } = await api.post(`/super-admin/users/${id}/status`, { active });
+        return data;
+    },
+    resetUserPassword: async (id: string) => {
+        const { data } = await api.post(`/super-admin/users/${id}/reset-password`);
+        return data;
+    },
+    getSubscriptions: async () => {
+        const { data } = await api.get('/super-admin/subscriptions');
+        return data;
+    },
 
     // PLANY
     getPlans: async () => {
@@ -220,6 +232,10 @@ export const billingApi = {
     acceptTerms: async () => {
         const { data } = await api.post('/billing/accept-terms', {});
         return data;
+    },
+    getPublicSettings: async () => {
+        const { data } = await api.get('/billing/public-settings');
+        return data as { announcement: string | null; bankTransferDetails: string | null };
     },
 };
 

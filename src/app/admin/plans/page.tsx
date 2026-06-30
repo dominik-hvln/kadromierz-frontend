@@ -43,9 +43,6 @@ export default function PlansPage() {
     });
     const [planModules, setPlanModules] = useState<string[]>([]); // Selected modules for plan
 
-    const [financeEmail, setFinanceEmail] = useState('');
-    const [financeEmailSaving, setFinanceEmailSaving] = useState(false);
-
     const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
     const [editingModule, setEditingModule] = useState<any | null>(null);
     const [moduleData, setModuleData] = useState({
@@ -61,14 +58,12 @@ export default function PlansPage() {
 
     const fetchData = async () => {
         try {
-            const [plansData, modulesData, settingsData] = await Promise.all([
+            const [plansData, modulesData] = await Promise.all([
                 superAdminApi.getPlans(),
-                superAdminApi.getModules(),
-                superAdminApi.getSettings().catch(() => ({} as Record<string, string | null>))
+                superAdminApi.getModules()
             ]);
             setPlans(plansData);
             setModules(modulesData);
-            setFinanceEmail(settingsData?.finance_notification_email || '');
         } catch (error) {
             console.error(error);
             toast.error('Błąd pobierania danych');
@@ -148,22 +143,6 @@ export default function PlansPage() {
         }
     };
 
-    const handleSaveFinanceEmail = async () => {
-        if (financeEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(financeEmail.trim())) {
-            toast.error('Podaj poprawny adres e-mail.');
-            return;
-        }
-        setFinanceEmailSaving(true);
-        try {
-            await superAdminApi.updateSetting('finance_notification_email', financeEmail.trim() || null);
-            toast.success('Adres działu finansowego zapisany');
-        } catch (e) {
-            toast.error('Błąd zapisu adresu');
-        } finally {
-            setFinanceEmailSaving(false);
-        }
-    };
-
     // --- MODULES ---
 
     const handleCreateModule = () => {
@@ -217,30 +196,6 @@ export default function PlansPage() {
 
     return (
         <div className="space-y-12">
-            {/* USTAWIENIA ROZLICZEŃ */}
-            <div>
-                <div className="mb-4">
-                    <h2 className="text-2xl font-bold tracking-tight">Ustawienia rozliczeń</h2>
-                    <p className="text-muted-foreground text-sm">Konfiguracja powiadomień i obiegu płatności.</p>
-                </div>
-                <div className="bg-white rounded-md border p-6 max-w-2xl">
-                    <Label htmlFor="finance_email">Adres e-mail działu finansowego</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                        Na ten adres trafi powiadomienie, gdy firma wybierze płatność przelewem (z danymi do faktury i wybranym planem).
-                    </p>
-                    <div className="flex gap-2">
-                        <Input
-                            id="finance_email"
-                            type="email"
-                            value={financeEmail}
-                            onChange={(e) => setFinanceEmail(e.target.value)}
-                            placeholder="finanse@firma.pl"
-                        />
-                        <Button onClick={handleSaveFinanceEmail} disabled={financeEmailSaving}>Zapisz</Button>
-                    </div>
-                </div>
-            </div>
-
             {/* PLANS SECTION */}
             <div>
                 <div className="flex justify-between items-center mb-6">

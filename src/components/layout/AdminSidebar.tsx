@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Layers, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, Building2, Layers, Users, CreditCard, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
 import BrandLogo from '@/components/layout/BrandLogo';
@@ -22,8 +22,10 @@ export default function AdminSidebar() {
     const navItems = [
         { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
         { label: 'Firmy', path: '/admin/companies', icon: Building2 },
+        { label: 'Subskrypcje', path: '/admin/subscriptions', icon: CreditCard },
         { label: 'Plany i Moduły', path: '/admin/plans', icon: Layers },
-        // { label: 'Użytkownicy', path: '/admin/users', icon: Users },
+        { label: 'Użytkownicy', path: '/admin/users', icon: Users },
+        { label: 'Ustawienia', path: '/admin/settings', icon: Settings },
     ];
 
     return (

@@ -23,9 +23,11 @@ export default function OnboardingGate() {
     const [isYearly, setIsYearly] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [transferDone, setTransferDone] = useState(false);
+    const [bankDetails, setBankDetails] = useState<string | null>(null);
 
     useEffect(() => {
         stripeApi.getPlans().then(setPlans).catch(() => toast.error('Nie udało się pobrać planów'));
+        billingApi.getPublicSettings().then((s) => setBankDetails(s?.bankTransferDetails || null)).catch(() => {});
     }, []);
 
     const handleCardCheckout = async (plan: Plan) => {
@@ -84,6 +86,12 @@ export default function OnboardingGate() {
                         <p className="text-sm text-muted-foreground">
                             Możesz już korzystać z aplikacji zgodnie z wybranym planem.
                         </p>
+                        {bankDetails && (
+                            <div className="text-left bg-gray-50 border rounded-lg p-4 text-sm whitespace-pre-line">
+                                <div className="font-semibold mb-1">Dane do przelewu:</div>
+                                {bankDetails}
+                            </div>
+                        )}
                         <Button className="mt-2" onClick={() => refreshSession()}>
                             Przejdź do aplikacji
                         </Button>

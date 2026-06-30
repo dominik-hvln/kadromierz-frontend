@@ -8,6 +8,7 @@ import Header from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/sonner';
 import OnboardingGate from '@/components/billing/OnboardingGate';
 import TermsAcceptanceModal from '@/components/billing/TermsAcceptanceModal';
+import AnnouncementBanner from '@/components/layout/AnnouncementBanner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isHydrating, user, refreshSession } = useAuthStore();
@@ -62,6 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Header />
                 <main className="flex-1 p-6 overflow-y-auto flex flex-col">
                     <div className="flex-1">
+                        <AnnouncementBanner />
                         {children}
                     </div>
                 </main>
