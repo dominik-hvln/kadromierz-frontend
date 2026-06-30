@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 interface ModuleGuardProps {
     children: React.ReactNode;
     moduleCode: string; // The code of the module required
+    moduleName?: string; // Przyjazna nazwa do komunikatu (fallback: kod)
 }
 
-export function ModuleGuard({ children, moduleCode }: ModuleGuardProps) {
+export function ModuleGuard({ children, moduleCode, moduleName }: ModuleGuardProps) {
     const { user, isHydrating } = useAuthStore();
     const router = useRouter();
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
@@ -47,13 +48,13 @@ export function ModuleGuard({ children, moduleCode }: ModuleGuardProps) {
                 <ShieldAlert className="w-16 h-16 text-red-500" />
                 <h1 className="text-2xl font-bold text-gray-900">Moduł niedostępny</h1>
                 <p className="text-gray-500 max-w-md">
-                    Twoja firma nie posiada dostępu do modułu <code>{moduleCode}</code> w ramach obecnego planu subskrypcji.
+                    Twoja firma nie posiada dostępu do modułu <strong>{moduleName || moduleCode}</strong> w ramach obecnego planu subskrypcji.
                 </p>
                 <div className="flex gap-4">
                     <Button variant="outline" onClick={() => router.push('/dashboard')}>
                         Wróć do Panelu
                     </Button>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'admin' || user?.role === 'manager') && (
                         <Button onClick={() => router.push('/dashboard/billing')}>
                             Ulepsz Plan
                         </Button>

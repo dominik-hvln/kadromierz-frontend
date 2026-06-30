@@ -174,6 +174,49 @@ export const superAdminApi = {
         const { data } = await api.post(`/super-admin/companies/${companyId}/module`, { moduleCode, isEnabled });
         return data;
     },
+    activateTransfer: async (companyId: string, periodDays?: number) => {
+        const { data } = await api.post(`/super-admin/companies/${companyId}/activate-transfer`, { periodDays });
+        return data;
+    },
+
+    // USTAWIENIA APLIKACJI
+    getSettings: async () => {
+        const { data } = await api.get('/super-admin/settings');
+        return data as Record<string, string | null>;
+    },
+    updateSetting: async (key: string, value: string | null) => {
+        const { data } = await api.put('/super-admin/settings', { key, value });
+        return data;
+    },
+};
+
+// --- BILLING / ONBOARDING ---
+export interface BillingProfilePayload {
+    legal_name: string;
+    tax_id: string;
+    billing_street: string;
+    billing_postal_code: string;
+    billing_city: string;
+    billing_email: string;
+}
+
+export const billingApi = {
+    getProfile: async () => {
+        const { data } = await api.get('/billing/profile');
+        return data;
+    },
+    updateProfile: async (payload: BillingProfilePayload) => {
+        const { data } = await api.patch('/billing/profile', payload);
+        return data;
+    },
+    selectTransfer: async (planId?: string) => {
+        const { data } = await api.post('/billing/select-transfer', { planId });
+        return data;
+    },
+    acceptTerms: async () => {
+        const { data } = await api.post('/billing/accept-terms', {});
+        return data;
+    },
 };
 
 // --- STRIPE & SUBSCRIPTIONS ---

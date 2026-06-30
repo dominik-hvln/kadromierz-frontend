@@ -51,6 +51,7 @@ interface TimeEntry {
 interface TimeSummary {
     timeEntryMinutes: number;
     absenceMinutes: number;
+    holidayMinutes: number;
     totalMinutes: number;
 }
 interface User { 
@@ -83,6 +84,8 @@ export default function TimeEntriesPage() {
     const [summary, setSummary] = useState<TimeSummary | null>(null);
     const { user } = useAuthStore();
     const isEmployee = user?.role === 'employee';
+    // Podstawowe raporty = eksport PDF/CSV z ewidencji (moduł 'reports')
+    const canExport = Boolean(user?.role === 'super_admin' || user?.modules?.includes('reports'));
 
     const totalDurationMinutes = useMemo(() => {
         return entries.reduce((total, entry) => {
@@ -106,6 +109,9 @@ export default function TimeEntriesPage() {
     const trackedMinutes = totalDurationMinutes % 60;
     const absenceHours = Math.floor(absenceMinutes / 60);
     const absenceMins = absenceMinutes % 60;
+    const holidayMinutes = summary?.holidayMinutes ?? 0;
+    const holidayHours = Math.floor(holidayMinutes / 60);
+    const holidayMins = holidayMinutes % 60;
 
     const handleExportCSV = () => {
         const headers = "Pracownik;Projekt;Zlecenie;Data Rozpoczęcia;Czas Rozpoczęcia;Data Zakończenia;Czas Zakończenia;Czas Trwania (min)\n";
@@ -199,7 +205,10 @@ export default function TimeEntriesPage() {
             doc.setFontSize(12);
 
             // Ta linia teraz zadziała poprawnie
-            const absenceLine = absenceMinutes > 0 ? ` (w tym urlop/L4: ${absenceHours}h ${absenceMins}m)` : '';
+            const extraParts: string[] = [];
+            if (absenceMinutes > 0) extraParts.push(`urlop/L4: ${absenceHours}h ${absenceMins}m`);
+            if (holidayMinutes > 0) extraParts.push(`święta: ${holidayHours}h ${holidayMins}m`);
+            const absenceLine = extraParts.length > 0 ? ` (w tym ${extraParts.join(', ')})` : '';
             doc.text(`Łączny czas pracy: ${totalHours}h ${totalMinutes}m${absenceLine}`, 14, finalY + 10);
 
             doc.save('raport_czasu_pracy.pdf');
@@ -375,12 +384,16 @@ export default function TimeEntriesPage() {
                             <Hand className="mr-2 h-4 w-4" /> Dodaj ręcznie
                         </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                        <FileDown className="mr-2 h-4 w-4" /> CSV
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                        <FileDown className="mr-2 h-4 w-4" /> PDF
-                    </Button>
+                    {canExport && (
+                        <>
+                            <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                                <FileDown className="mr-2 h-4 w-4" /> CSV
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                                <FileDown className="mr-2 h-4 w-4" /> PDF
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
             <div className="mb-4 bg-gray-50 p-6 rounded-xl border pb-6">
@@ -399,6 +412,7 @@ export default function TimeEntriesPage() {
                             <p className="text-xs text-gray-500 mt-1">
                                 Rejestracja: {trackedHours}h {trackedMinutes}m
                                 {absenceMinutes > 0 && ` · Urlop/L4: ${absenceHours}h ${absenceMins}m`}
+                                {holidayMinutes > 0 && ` · Święta: ${holidayHours}h ${holidayMins}m`}
                             </p>
                         </div>
                     </div>

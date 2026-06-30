@@ -25,6 +25,26 @@ interface User {
     phone_number?: string;
     emergency_contact?: string;
     status?: string;
+
+    // Rozliczenia / onboarding (zwracane przez /auth/me)
+    company?: {
+        id: string;
+        name?: string;
+        legal_name?: string;
+        tax_id?: string;
+        billing_street?: string;
+        billing_postal_code?: string;
+        billing_city?: string;
+        billing_email?: string;
+        billing_type?: 'card' | 'transfer' | null;
+        billing_details_completed_at?: string | null;
+        accepted_terms_version?: string | null;
+    } | null;
+    needsOnboarding?: boolean;
+    needsTermsAcceptance?: boolean;
+    companyDataComplete?: boolean;
+    billingDecisionMade?: boolean;
+    currentTermsVersion?: string;
 }
 
 interface AuthState {

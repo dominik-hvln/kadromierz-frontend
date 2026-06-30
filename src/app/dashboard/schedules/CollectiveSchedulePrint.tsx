@@ -28,18 +28,25 @@ export default function CollectiveSchedulePrint({ month, year, events, holidays 
         return Array.from(usersMap.values()).sort((a, b) => a.last_name.localeCompare(b.last_name));
     }, [events]);
 
-    const renderShiftBadge = (shiftName: string) => {
-        const name = shiftName.toLowerCase();
+    const fmtHour = (t?: string) => {
+        if (!t) return '';
+        const [h, m] = t.split(':');
+        return m && m !== '00' ? `${parseInt(h, 10)}:${m}` : `${parseInt(h, 10)}`;
+    };
+
+    const renderShiftBadge = (shiftName: string, startTime?: string, endTime?: string) => {
+        const name = (shiftName || '').toLowerCase();
+        const hours = startTime && endTime ? `${fmtHour(startTime)}-${fmtHour(endTime)}` : (shiftName || '').substring(0, 5);
         if (name.includes('rano')) {
-            return <div className="text-[9px] font-bold text-sky-700 bg-sky-100 rounded-full py-[2px] px-1 text-center w-full">Rano</div>;
+            return <div className="text-[9px] font-bold text-sky-700 bg-sky-100 rounded-full py-[2px] px-1 text-center w-full">{hours}</div>;
         }
         if (name.includes('pop')) {
-            return <div className="text-[9px] font-bold text-indigo-700 bg-indigo-100 rounded-full py-[2px] px-1 text-center w-full">Popo.</div>;
+            return <div className="text-[9px] font-bold text-indigo-700 bg-indigo-100 rounded-full py-[2px] px-1 text-center w-full">{hours}</div>;
         }
         if (name.includes('noc')) {
-            return <div className="text-[9px] font-bold text-slate-700 bg-slate-200 rounded-full py-[2px] px-1 text-center w-full">Noc</div>;
+            return <div className="text-[9px] font-bold text-slate-700 bg-slate-200 rounded-full py-[2px] px-1 text-center w-full">{hours}</div>;
         }
-        return <div className="text-[9px] font-bold text-gray-700 bg-gray-100 rounded-full py-[2px] px-1 text-center w-full">{shiftName.substring(0, 4)}</div>;
+        return <div className="text-[9px] font-bold text-gray-700 bg-gray-100 rounded-full py-[2px] px-1 text-center w-full">{hours}</div>;
     };
 
     return (
@@ -98,7 +105,7 @@ export default function CollectiveSchedulePrint({ month, year, events, holidays 
                                                 ) : ev ? (
                                                     ev.status === 'replacement_needed' 
                                                         ? <div className="text-[9px] font-bold text-red-700 bg-red-100 rounded-full py-[2px] px-1 w-full text-center">L4/Urlop</div>
-                                                        : renderShiftBadge(ev.raw.shift_name)
+                                                        : renderShiftBadge(ev.raw.shift_name, ev.raw.start_time, ev.raw.end_time)
                                                 ) : (
                                                     <span className="text-gray-300 text-[10px]">-</span>
                                                 )}

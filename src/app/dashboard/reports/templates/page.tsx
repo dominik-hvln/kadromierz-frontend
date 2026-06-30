@@ -12,6 +12,7 @@ import { Plus, FileText, Calendar, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 // ✅ 1. Importujemy typ pola, który zdefiniowaliśmy wcześniej
 import { TemplateField } from '@/components/reports/TemplateBuilder';
+import { ModuleGuard } from '@/components/auth/module-guard';
 
 // ✅ 2. Używamy tego typu w interfejsie
 interface ReportTemplate {
@@ -32,12 +33,14 @@ export default function TemplatesListPage() {
     const [templates, setTemplates] = useState<ReportTemplate[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const hasConfigurator = Boolean(user?.modules?.includes('report_configurator') || user?.role === 'super_admin');
+
     useEffect(() => {
         const fetchTemplates = async () => {
             // Rzutowanie typu dla bezpieczeństwa
             const companyId = (user as unknown as UserWithCompany)?.company_id;
 
-            if (!companyId) {
+            if (!companyId || !hasConfigurator) {
                 setLoading(false);
                 return;
             }
@@ -54,9 +57,10 @@ export default function TemplatesListPage() {
         };
 
         fetchTemplates();
-    }, [user]);
+    }, [user, hasConfigurator]);
 
     return (
+        <ModuleGuard moduleCode="report_configurator" moduleName="Konfigurator raportów">
         <div className="p-6 space-y-6">
             {/* Nagłówek */}
             <div className="flex items-center justify-between">
@@ -139,5 +143,6 @@ export default function TemplatesListPage() {
                 </CardContent>
             </Card>
         </div>
+        </ModuleGuard>
     );
 }

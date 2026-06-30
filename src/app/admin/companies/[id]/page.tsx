@@ -50,6 +50,17 @@ export default function CompanyDetailsPage() {
         }
     };
 
+    const handleActivateTransfer = async () => {
+        if (!confirm('Potwierdzasz zaksięgowanie wpłaty i aktywację subskrypcji tej firmy?')) return;
+        try {
+            await superAdminApi.activateTransfer(id);
+            toast.success('Subskrypcja aktywowana');
+            fetchData();
+        } catch (error) {
+            toast.error('Błąd aktywacji subskrypcji');
+        }
+    };
+
     const handleToggleModule = async (moduleCode: string, currentState: boolean) => {
         try {
             await superAdminApi.toggleModule(id, moduleCode, !currentState);
@@ -80,6 +91,29 @@ export default function CompanyDetailsPage() {
                     Status: {currentSubscription?.status || 'Brak subskrypcji'}
                 </div>
             </div>
+
+            {/* OCZEKUJĄCY PRZELEW */}
+            {currentSubscription?.status === 'pending_transfer' && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
+                    <div className="text-sm text-amber-800">
+                        <div className="font-semibold">Oczekuje na płatność przelewem</div>
+                        <div>Firma wybrała rozliczenie przelewem. Po zaksięgowaniu wpłaty aktywuj subskrypcję.</div>
+                    </div>
+                    <Button onClick={handleActivateTransfer}>Aktywuj (wpłata zaksięgowana)</Button>
+                </div>
+            )}
+
+            {/* DANE FIRMY DO FAKTUR */}
+            {(company.tax_id || company.legal_name) && (
+                <div className="p-4 rounded-xl border border-gray-100 bg-white text-sm grid sm:grid-cols-2 gap-x-8 gap-y-1">
+                    <div><span className="text-gray-500">Nazwa (faktura): </span>{company.legal_name || '—'}</div>
+                    <div><span className="text-gray-500">NIP: </span>{company.tax_id || '—'}</div>
+                    <div><span className="text-gray-500">Adres: </span>{[company.billing_street, [company.billing_postal_code, company.billing_city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || '—'}</div>
+                    <div><span className="text-gray-500">E-mail faktur: </span>{company.billing_email || '—'}</div>
+                    <div><span className="text-gray-500">Metoda płatności: </span>{company.billing_type === 'card' ? 'Karta (Stripe)' : company.billing_type === 'transfer' ? 'Przelew' : '—'}</div>
+                    <div><span className="text-gray-500">Regulamin (wersja): </span>{company.accepted_terms_version || 'niezaakceptowany'}</div>
+                </div>
+            )}
 
             <div className="grid md:grid-cols-2 gap-8">
                 {/* SUBSKRYPCJA I PLAN */}

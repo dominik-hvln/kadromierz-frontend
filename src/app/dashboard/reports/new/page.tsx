@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { FileText, ArrowLeft, Mail } from 'lucide-react';
+import { ModuleGuard } from '@/components/auth/module-guard';
 
 interface ReportTemplate {
     id: string;
@@ -91,6 +92,7 @@ export default function NewReportPage() {
     }
 
     return (
+        <ModuleGuard moduleCode="reports_advanced" moduleName="Zaawansowane raporty">
         <div className="p-6 max-w-3xl mx-auto space-y-6">
             <div className="flex items-center gap-4 mb-6">
                 <Button variant="ghost" size="icon" onClick={() => router.back()}>
@@ -171,5 +173,6 @@ export default function NewReportPage() {
                 </Card>
             )}
         </div>
+        </ModuleGuard>
     );
 }

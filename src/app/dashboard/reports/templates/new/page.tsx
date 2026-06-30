@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
+import { ModuleGuard } from '@/components/auth/module-guard';
 
 interface UserWithCompany {
     company_id?: string;
@@ -83,6 +84,7 @@ export default function NewTemplatePage() {
     };
 
     return (
+        <ModuleGuard moduleCode="report_configurator" moduleName="Konfigurator raportów">
         <div className="p-6 space-y-6 max-w-6xl mx-auto">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -188,5 +190,6 @@ export default function NewTemplatePage() {
                 </TabsContent>
             </Tabs>
         </div>
+        </ModuleGuard>
     );
 }

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { CURRENT_TERMS_DATE, CURRENT_TERMS_VERSION } from '@/lib/terms';
 
 export default function RegulaminPage() {
     const router = useRouter();
@@ -15,7 +16,12 @@ export default function RegulaminPage() {
                     <Button variant="ghost" size="icon" onClick={() => router.back()}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <CardTitle className="text-2xl">Regulamin korzystania z systemu Effixy</CardTitle>
+                    <div>
+                        <CardTitle className="text-2xl">Regulamin korzystania z systemu Effixy</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Wersja {CURRENT_TERMS_VERSION} · obowiązuje od {CURRENT_TERMS_DATE}
+                        </p>
+                    </div>
                 </CardHeader>
                 <CardContent className="prose prose-sm max-w-none">
                     <h2>1. Informacje ogólne</h2>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { ModuleGuard } from '@/components/auth/module-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,8 @@ export default function ReportsListPage() {
     const { user } = useAuthStore();
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const hasConfigurator = Boolean(user?.modules?.includes('report_configurator'));
 
     useEffect(() => {
         const fetchReports = async () => {
@@ -82,6 +85,7 @@ export default function ReportsListPage() {
     };
 
     return (
+        <ModuleGuard moduleCode="reports_advanced" moduleName="Zaawansowane raporty">
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
@@ -89,9 +93,11 @@ export default function ReportsListPage() {
                     <p className="text-muted-foreground">Przeglądaj dokumentację techniczną i generuj pliki PDF.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Link href="/dashboard/reports/templates">
-                        <Button variant="outline">Szablony</Button>
-                    </Link>
+                    {hasConfigurator && (
+                        <Link href="/dashboard/reports/templates">
+                            <Button variant="outline">Szablony</Button>
+                        </Link>
+                    )}
                     <Link href="/dashboard/reports/new">
                         <Button>
                             <Plus className="mr-2 h-4 w-4" /> Nowy Raport
@@ -173,6 +179,7 @@ export default function ReportsListPage() {
                 </CardContent>
             </Card>
         </div>
+        </ModuleGuard>
     );
 
 }

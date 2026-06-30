@@ -186,12 +186,21 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
       return Array.from(usersMap.values()).sort((a, b) => a.last_name.localeCompare(b.last_name));
   }, [events]);
 
-  const renderBadge = (shiftName: string) => {
-      const name = shiftName.toLowerCase();
-      if (name.includes('rano')) return <Text style={styles.shiftBadgeRano}>Rano</Text>;
-      if (name.includes('pop')) return <Text style={styles.shiftBadgePopo}>Popo.</Text>;
-      if (name.includes('noc')) return <Text style={styles.shiftBadgeNoc}>Noc</Text>;
-      return <Text style={styles.shiftBadgeOther}>{shiftName.substring(0, 4)}</Text>;
+  // Skraca godzinę: "07:00" -> "7", "07:30" -> "7:30"
+  const fmtHour = (t?: string) => {
+      if (!t) return '';
+      const [h, m] = t.split(':');
+      return m && m !== '00' ? `${parseInt(h, 10)}:${m}` : `${parseInt(h, 10)}`;
+  };
+
+  // Pokazuje zdefiniowane godziny pracy (np. "7-19"); kolor wg typu zmiany.
+  const renderBadge = (shiftName: string, startTime?: string, endTime?: string) => {
+      const name = (shiftName || '').toLowerCase();
+      const hours = startTime && endTime ? `${fmtHour(startTime)}-${fmtHour(endTime)}` : (shiftName || '').substring(0, 5);
+      if (name.includes('rano')) return <Text style={styles.shiftBadgeRano}>{hours}</Text>;
+      if (name.includes('pop')) return <Text style={styles.shiftBadgePopo}>{hours}</Text>;
+      if (name.includes('noc')) return <Text style={styles.shiftBadgeNoc}>{hours}</Text>;
+      return <Text style={styles.shiftBadgeOther}>{hours}</Text>;
   };
 
   return (
@@ -252,7 +261,7 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
                               ? <Text style={styles.shiftL4}>U</Text>
                               : ev.status === 'sick_leave' || ev.status === 'replacement_needed'
                                   ? <Text style={styles.shiftL4}>L4</Text>
-                                  : renderBadge(ev.raw.shift_name)
+                                  : renderBadge(ev.raw.shift_name, ev.raw.start_time, ev.raw.end_time)
                       ) : (
                           <Text style={{ fontSize: 7, color: '#aaa' }}>-</Text>
                       )}

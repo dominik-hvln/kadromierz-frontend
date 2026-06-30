@@ -29,11 +29,11 @@ interface NavLink {
 export const navLinks: NavLink[] = [
     { href: '/dashboard', label: 'Panel Główny', icon: Home },
     { href: '/dashboard/activity', label: 'Aktywność', icon: Activity, roles: ['admin', 'manager'] },
-    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, roles: ['admin', 'manager', 'employee'] },
-    { href: '/dashboard/absences', label: 'L4 / Urlopy', icon: Calendar, roles: ['admin', 'manager', 'employee'] },
+    { href: '/dashboard/entries', label: 'Ewidencja Czasu', icon: Clock, moduleCode: 'time_tracking', roles: ['admin', 'manager', 'employee'] },
+    { href: '/dashboard/absences', label: 'L4 / Urlopy', icon: Calendar, moduleCode: 'absences', roles: ['admin', 'manager', 'employee'] },
     { href: '/dashboard/schedules', label: 'Grafik Pracy', icon: CalendarDays, moduleCode: 'schedules', roles: ['admin', 'manager', 'employee'] },
     { href: '/dashboard/projects', label: 'Projekty', icon: FolderKanban, moduleCode: 'projects', roles: ['admin', 'manager'] },
-    { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports', roles: ['admin', 'manager'] },
+    { href: '/dashboard/reports', label: 'Raporty', icon: FileText, moduleCode: 'reports_advanced', roles: ['admin', 'manager'] },
     { href: '/dashboard/users', label: 'Pracownicy', icon: Users, roles: ['admin', 'manager'] },
     { href: '/dashboard/locations', label: 'Kody Ogólne', icon: MapPin, moduleCode: 'geolocation', roles: ['admin', 'manager'] },
     { href: '/dashboard/company-settings', label: 'Ustawienia Kadrowe', icon: Settings, roles: ['admin', 'manager'] },
@@ -41,7 +41,7 @@ export const navLinks: NavLink[] = [
         href: '/dashboard/billing',
         label: 'Subskrypcja',
         icon: CreditCard,
-        roles: ['admin']
+        roles: ['admin', 'manager']
     },
 
     // ✅ SUPER ADMIN
