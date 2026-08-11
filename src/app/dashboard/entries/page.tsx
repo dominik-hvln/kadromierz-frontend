@@ -25,6 +25,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FileDown, DollarSign, Clock, Target, Hand } from 'lucide-react';
 import { AddManualEntryForm } from '@/components/time-entries/AddManualEntryForm';
+import { MonthlyReportExport } from '@/components/time-entries/MonthlyReportExport';
 import { formatDateTimePl } from '@/lib/datetime';
 
 interface FTE {
@@ -387,15 +388,31 @@ export default function TimeEntriesPage() {
                     {canExport && (
                         <>
                             <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                                <FileDown className="mr-2 h-4 w-4" /> CSV
+                                <FileDown className="mr-2 h-4 w-4" /> CSV (lista wpisów)
                             </Button>
                             <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                                <FileDown className="mr-2 h-4 w-4" /> PDF
+                                <FileDown className="mr-2 h-4 w-4" /> PDF (lista wpisów)
                             </Button>
                         </>
                     )}
                 </div>
             </div>
+
+            {canExport && (
+                <div className="mb-4">
+                    <MonthlyReportExport
+                        userId={selectedUserId}
+                        userLabel={
+                            selectedUserId !== 'all'
+                                ? (() => {
+                                    const u = users.find((x) => x.id === selectedUserId);
+                                    return u ? `${u.first_name} ${u.last_name}` : undefined;
+                                })()
+                                : undefined
+                        }
+                    />
+                </div>
+            )}
             <div className="mb-4 bg-gray-50 p-6 rounded-xl border pb-6">
                 <h3 className="text-lg font-semibold mb-4">
                     Podsumowanie dla wybranych filtrów

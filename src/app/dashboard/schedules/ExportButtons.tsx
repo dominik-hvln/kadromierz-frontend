@@ -56,7 +56,10 @@ export default function ExportButtons({ month, year, events, holidays, departmen
                 
                 if (isHoliday) row.push('WOLNE');
                 else if (ev) {
-                    if (ev.status === 'replacement_needed') row.push('L4/URL');
+                    // Te same oznaczenia co w PDF — wcześniej urlop/L4 wyświetlał się jako nazwa zmiany.
+                    if (ev.status === 'on_leave') row.push('U');
+                    else if (ev.status === 'sick_leave') row.push('L4');
+                    else if (ev.status === 'replacement_needed') row.push('L4/URL');
                     else row.push(ev.raw.shift_name);
                 } else row.push('-');
             });

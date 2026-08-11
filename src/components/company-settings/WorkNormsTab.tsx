@@ -16,6 +16,8 @@ export default function WorkNormsTab() {
 
     const [dailyNorm, setDailyNorm] = useState('8');
     const [countHolidays, setCountHolidays] = useState(true);
+    const [nightStart, setNightStart] = useState('22:00');
+    const [nightEnd, setNightEnd] = useState('06:00');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -25,6 +27,8 @@ export default function WorkNormsTab() {
             .then(({ data }) => {
                 setDailyNorm(String(data.daily_norm_hours ?? 8));
                 setCountHolidays(data.count_holidays_as_work !== false);
+                setNightStart(data.night_start ?? '22:00');
+                setNightEnd(data.night_end ?? '06:00');
             })
             .catch(() => toast.error('Nie udało się pobrać ustawień czasu pracy'))
             .finally(() => setLoading(false));
@@ -36,11 +40,17 @@ export default function WorkNormsTab() {
             toast.error('Norma dobowa musi być z zakresu 0–24 godzin.');
             return;
         }
+        if (nightStart === nightEnd) {
+            toast.error('Początek i koniec pory nocnej nie mogą być takie same.');
+            return;
+        }
         setSaving(true);
         try {
             await api.patch('/company-settings/work-norms', {
                 daily_norm_hours: norm,
                 count_holidays_as_work: countHolidays,
+                night_start: nightStart,
+                night_end: nightEnd,
             });
             toast.success('Zapisano ustawienia czasu pracy');
         } catch {
@@ -94,6 +104,43 @@ export default function WorkNormsTab() {
                         Dni ustawowo wolne przypadające w dzień roboczy (wg grafiku działu) doliczane są jako godziny.
                     </p>
                 </div>
+            </div>
+
+            <div className="space-y-2 border-t pt-6">
+                <h3 className="text-lg font-semibold">Pora nocna</h3>
+                <p className="text-sm text-muted-foreground">
+                    Godziny przepracowane w tym przedziale trafiają w raporcie miesięcznym ewidencji
+                    do kolumny <strong>noc</strong>, pozostałe do kolumny <strong>dz.</strong> Suma obu
+                    zawsze równa się czasowi pracy — np. zmiana 16:00–24:00 przy porze nocnej 22:00–06:00
+                    to 6h dziennych i 2h nocnych.
+                </p>
+                <div className="flex items-end gap-4 pt-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="night_start">Od</Label>
+                        <Input
+                            id="night_start"
+                            type="time"
+                            value={nightStart}
+                            onChange={(e) => setNightStart(e.target.value)}
+                            className="w-32"
+                            disabled={!isAdmin}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="night_end">Do</Label>
+                        <Input
+                            id="night_end"
+                            type="time"
+                            value={nightEnd}
+                            onChange={(e) => setNightEnd(e.target.value)}
+                            className="w-32"
+                            disabled={!isAdmin}
+                        />
+                    </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Domyślnie 22:00–06:00. Kodeks pracy wymaga 8 godzin w przedziale 21:00–07:00.
+                </p>
             </div>
 
             {isAdmin ? (
