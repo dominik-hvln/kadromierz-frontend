@@ -59,21 +59,18 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => ({
     label: format(new Date(2000, i, 1), 'LLLL', { locale: pl }),
 }));
 
-/** Minuty -> godziny dziesiętne z przecinkiem (format czytany przez Excel PL). */
-function hours(minutes: number, decimals = 2): string {
-    if (!minutes) return '';
-    return (minutes / 60).toFixed(decimals).replace('.', ',');
-}
+type HourFormat = 'hhmm' | 'decimal';
 
-/** Krótszy zapis do PDF: 8, 7,5, 6,25 */
-function hoursShort(minutes: number): string {
+/** Minuty -> "8:00" (czytelne) albo "8,00" (dziesiętne, do obliczeń w Excelu). */
+function formatMinutes(minutes: number, mode: HourFormat): string {
     if (!minutes) return '';
-    return String(Number((minutes / 60).toFixed(2))).replace('.', ',');
+    if (mode === 'decimal') return (minutes / 60).toFixed(2).replace('.', ',');
+    return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
 /** Kolumny podsumowań — tam zero ma być widoczne, a nie puste. */
-function hoursTotal(minutes: number): string {
-    return hours(minutes) || '0,00';
+function formatTotal(minutes: number, mode: HourFormat): string {
+    return formatMinutes(minutes, mode) || (mode === 'decimal' ? '0,00' : '0:00');
 }
 
 function dayHeader(day: ReportDay, compact = false): string {
@@ -97,7 +94,15 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
     const now = new Date();
     const [month, setMonth] = useState(now.getMonth() + 1);
     const [year, setYear] = useState(now.getFullYear());
+    const [hourFormat, setHourFormat] = useState<HourFormat>('hhmm');
     const [busy, setBusy] = useState(false);
+
+    const fmt = (m: number) => formatMinutes(m, hourFormat);
+    const fmtTotal = (m: number) => formatTotal(m, hourFormat);
+    const formatNote =
+        hourFormat === 'hhmm'
+            ? 'Format godzin: gg:mm (np. 8:30 = osiem i pół godziny).'
+            : 'Format godzin: dziesiętny (np. 8,50 = osiem i pół godziny).';
 
     const years = Array.from({ length: 6 }, (_, i) => now.getFullYear() - 4 + i);
     const periodLabel = format(new Date(year, month - 1, 1), 'LLLL yyyy', { locale: pl });
@@ -133,6 +138,7 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
             lines.push([`Pora nocna: ${report.nightStart}–${report.nightEnd}`]);
             lines.push([`Legenda: ${LEGEND}`]);
             lines.push(['Dni oznaczone literką liczą się do sumy godzin tak jak dzień przepracowany.']);
+            lines.push([formatNote]);
             lines.push([]);
 
             // Dwa wiersze nagłówka: numer dnia, pod nim podział dz./noc.
@@ -150,10 +156,10 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
             for (const row of rows) {
                 lines.push([
                     `${row.lastName} ${row.firstName}`,
-                    ...days.flatMap((d) => cellValues(row.cells[d.date], (m) => hours(m))),
-                    hoursTotal(row.totals.totalMinutes),
-                    hoursTotal(row.totals.nightMinutes),
-                    hoursTotal(row.totals.absenceMinutes + row.totals.holidayMinutes),
+                    ...days.flatMap((d) => cellValues(row.cells[d.date], fmt)),
+                    fmtTotal(row.totals.totalMinutes),
+                    fmtTotal(row.totals.nightMinutes),
+                    fmtTotal(row.totals.absenceMinutes + row.totals.holidayMinutes),
                     String(row.totals.vacationDays),
                     String(row.totals.sickDays),
                 ]);
@@ -221,6 +227,15 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
                     20,
                 );
                 doc.text(`Legenda: ${LEGEND}`, 14, 24);
+                doc.text(formatNote, 14, 28);
+            };
+
+            // Roboto zarejestrowaliśmy tylko w odmianie normalnej — bez tego autoTable
+            // rysuje nagłówki pogrubione, spada na Helveticę i gubi polskie znaki (ś -> [).
+            const headStyles = {
+                font: 'Roboto',
+                fontStyle: 'normal' as const,
+                fillColor: [51, 65, 85] as [number, number, number],
             };
 
             chunks.forEach((chunk, index) => {
@@ -228,18 +243,19 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
                 drawHeader(`Dni ${chunk[0].day}–${chunk[chunk.length - 1].day}`);
 
                 autoTable(doc, {
-                    startY: 29,
+                    startY: 33,
                     head: [
-                        ['Pracownik', ...chunk.flatMap((d) => [dayHeader(d, true), ''])],
+                        // Etykieta dnia scalona nad parą kolumn dz./noc.
+                        ['Pracownik', ...chunk.map((d) => ({ content: dayHeader(d, true), colSpan: 2 }))],
                         ['', ...chunk.flatMap(() => ['dz.', 'noc'])],
                     ],
                     body: rows.map((row) => [
                         `${row.lastName} ${row.firstName}`,
-                        ...chunk.flatMap((d) => cellValues(row.cells[d.date], hoursShort)),
+                        ...chunk.flatMap((d) => cellValues(row.cells[d.date], fmt)),
                     ]),
-                    styles: { font: 'Roboto', fontSize: 6, cellPadding: 1, halign: 'center' },
-                    headStyles: { font: 'Roboto', fontSize: 5.5, fillColor: [51, 65, 85] },
-                    columnStyles: { 0: { cellWidth: 32, halign: 'left' } },
+                    styles: { font: 'Roboto', fontSize: 6.5, cellPadding: 1, halign: 'center' },
+                    headStyles: { ...headStyles, fontSize: 6 },
+                    columnStyles: { 0: { cellWidth: 30, halign: 'left' } },
                     // Weekendy i święta na szaro, żeby od razu było widać dni wolne.
                     didParseCell: (data) => {
                         if (data.column.index === 0) return;
@@ -256,7 +272,7 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
             doc.addPage();
             drawHeader('Podsumowanie miesiąca');
             autoTable(doc, {
-                startY: 29,
+                startY: 33,
                 head: [[
                     'Pracownik',
                     'Razem godz.',
@@ -270,17 +286,17 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
                 ]],
                 body: rows.map((row) => [
                     `${row.lastName} ${row.firstName}`,
-                    hoursShort(row.totals.totalMinutes) || '0',
-                    hoursShort(row.totals.dayMinutes) || '0',
-                    hoursShort(row.totals.nightMinutes) || '0',
-                    hoursShort(row.totals.absenceMinutes + row.totals.holidayMinutes) || '0',
+                    fmtTotal(row.totals.totalMinutes),
+                    fmtTotal(row.totals.dayMinutes),
+                    fmtTotal(row.totals.nightMinutes),
+                    fmtTotal(row.totals.absenceMinutes + row.totals.holidayMinutes),
                     String(row.totals.vacationDays),
                     String(row.totals.sickDays),
                     String(row.totals.otherAbsenceDays),
                     String(row.totals.holidayDays),
                 ]),
                 styles: { font: 'Roboto', fontSize: 8, cellPadding: 2, halign: 'right' },
-                headStyles: { font: 'Roboto', fontSize: 8, fillColor: [51, 65, 85], halign: 'center' },
+                headStyles: { ...headStyles, fontSize: 8, halign: 'center' },
                 columnStyles: { 0: { halign: 'left' } },
             });
 
@@ -318,6 +334,14 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
                 </SelectContent>
             </Select>
 
+            <Select value={hourFormat} onValueChange={(v) => setHourFormat(v as HourFormat)}>
+                <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="hhmm">Godziny gg:mm</SelectItem>
+                    <SelectItem value="decimal">Godziny dziesiętne</SelectItem>
+                </SelectContent>
+            </Select>
+
             <Button variant="outline" size="sm" onClick={handleCSV} disabled={busy}>
                 <FileDown className="mr-2 h-4 w-4" /> CSV
             </Button>
@@ -327,6 +351,9 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
 
             <span className="text-xs text-muted-foreground">
                 Godziny dzienne i nocne osobno, nieobecności literką — wszystko liczy się do sumy miesiąca.
+                {hourFormat === 'hhmm'
+                    ? ' W Excelu ustaw kolumnom sum format [g]:mm, jeśli suma przekracza 24h.'
+                    : ' Format dziesiętny sumuje się w Excelu bez dodatkowych ustawień.'}
             </span>
         </div>
     );
