@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Search, KeyRound, UserX, UserCheck, Loader2, Plus } from 'lucide-react';
+import { Search, KeyRound, UserX, UserCheck, Loader2, Plus, Pencil } from 'lucide-react';
 import { CreateUserDialog } from '@/components/super-admin/CreateUserDialog';
+import { EditUserDialog } from '@/components/admin/EditUserDialog';
 
 const ROLE_LABEL: Record<string, string> = {
     super_admin: 'Super Admin',
@@ -23,6 +24,7 @@ export default function AdminUsersPage() {
     const [query, setQuery] = useState('');
     const [busyId, setBusyId] = useState<string | null>(null);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<any | null>(null);
 
     const fetchUsers = async () => {
         try {
@@ -147,6 +149,15 @@ export default function AdminUsersPage() {
                                         >
                                             {busyId === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                                         </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            disabled={archived}
+                                            onClick={() => setEditingUser(u)}
+                                            title={archived ? 'Konto zarchiwizowane' : 'Edytuj dane i rolę'}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
                                         {u.role !== 'super_admin' && !archived && (
                                             <Button
                                                 variant="ghost"
@@ -175,6 +186,12 @@ export default function AdminUsersPage() {
             <CreateUserDialog
                 open={isCreateOpen}
                 onOpenChange={setIsCreateOpen}
+                onSuccess={fetchUsers}
+            />
+
+            <EditUserDialog
+                user={editingUser}
+                onOpenChange={(open) => { if (!open) setEditingUser(null); }}
                 onSuccess={fetchUsers}
             />
         </div>

@@ -6,7 +6,7 @@ import { superAdminApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Check, X, Shield, Calendar, Settings, AlertTriangle, Loader2 } from 'lucide-react';
+import { Check, X, Shield, Calendar, Settings, AlertTriangle, Loader2, Users, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
@@ -19,6 +19,8 @@ export default function CompanyDetailsPage() {
     const [plans, setPlans] = useState<any[]>([]);
     const [allModules, setAllModules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [staff, setStaff] = useState<{ active: any[]; archived: any[] }>({ active: [], archived: [] });
+    const [showArchived, setShowArchived] = useState(false);
     const [confirmName, setConfirmName] = useState('');
     const [deleting, setDeleting] = useState(false);
 
@@ -28,14 +30,16 @@ export default function CompanyDetailsPage() {
 
     const fetchData = async () => {
         try {
-            const [compData, plansData, modsData] = await Promise.all([
+            const [compData, plansData, modsData, staffData] = await Promise.all([
                 superAdminApi.getCompany(id),
                 superAdminApi.getPlans(),
-                superAdminApi.getModules()
+                superAdminApi.getModules(),
+                superAdminApi.getCompanyUsers(id).catch(() => ({ active: [], archived: [] })),
             ]);
             setCompany(compData);
             setPlans(plansData);
             setAllModules(modsData);
+            setStaff(staffData);
         } catch (error) {
             console.error(error);
             toast.error('Błąd pobierania danych firmy');
@@ -222,6 +226,57 @@ export default function CompanyDetailsPage() {
             </div>
 
             {/* STREFA NIEBEZPIECZNA */}
+            {/* PRACOWNICY */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4 gap-4">
+                    <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-indigo-600" />
+                        <h2 className="text-lg font-semibold">Pracownicy</h2>
+                        <span className="text-sm text-gray-500">
+                            {staff.active.length} aktywnych
+                            {staff.archived.length > 0 && `, ${staff.archived.length} w archiwum`}
+                        </span>
+                    </div>
+                    {staff.archived.length > 0 && (
+                        <Button variant="outline" size="sm" onClick={() => setShowArchived((v) => !v)}>
+                            <Archive className="h-4 w-4 mr-2" />
+                            {showArchived ? 'Pokaż aktywnych' : 'Pokaż archiwum'}
+                        </Button>
+                    )}
+                </div>
+
+                {showArchived && (
+                    <p className="text-sm text-gray-500 mb-3">
+                        Pracownicy po zakończeniu współpracy. Nie mają dostępu do aplikacji,
+                        ale ich ewidencja czasu pracy pozostaje zachowana.
+                    </p>
+                )}
+
+                {(showArchived ? staff.archived : staff.active).length === 0 ? (
+                    <div className="text-sm text-gray-400 py-6 text-center">
+                        {showArchived ? 'Archiwum jest puste.' : 'Brak pracowników.'}
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-gray-100 text-sm">
+                        {(showArchived ? staff.archived : staff.active).map((u) => (
+                            <li key={u.id} className="flex items-center justify-between py-2 gap-4">
+                                <div className="min-w-0">
+                                    <div className="font-medium text-gray-900 truncate">
+                                        {[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">{u.email}</div>
+                                </div>
+                                <div className="text-xs text-gray-500 whitespace-nowrap">
+                                    {showArchived
+                                        ? `Zarchiwizowany ${u.archived_at ? format(new Date(u.archived_at), 'd MMM yyyy', { locale: pl }) : ''}`
+                                        : u.role}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
             <div className="bg-white p-6 rounded-xl border-2 border-red-200">
                 <div className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="w-5 h-5 text-red-600" />

@@ -122,6 +122,22 @@ export const superAdminApi = {
         const { data } = await api.post('/super-admin/users', dto);
         return data;
     },
+    updateUser: async (id: string, dto: { firstName?: string; lastName?: string; role?: string; companyId?: string | null }) => {
+        const { data } = await api.patch(`/super-admin/users/${id}`, dto);
+        return data;
+    },
+    getCompanyUsers: async (id: string) => {
+        const { data } = await api.get(`/super-admin/companies/${id}/users`);
+        return data;
+    },
+    getCompanyGrowth: async (months = 12) => {
+        const { data } = await api.get(`/super-admin/stats/company-growth?months=${months}`);
+        return data;
+    },
+    getRecentLogins: async (limit = 8) => {
+        const { data } = await api.get(`/super-admin/stats/recent-logins?limit=${limit}`);
+        return data;
+    },
     setUserActive: async (id: string, active: boolean) => {
         const { data } = await api.post(`/super-admin/users/${id}/status`, { active });
         return data;
