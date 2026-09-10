@@ -124,6 +124,63 @@
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
     }
+
+    /* Typografia dokumentów prawnych (Regulamin, Polityka prywatności).
+       Projekt nie korzysta z @tailwindcss/typography, a preflight zeruje
+       punktory list i rozmiary nagłówków — dlatego style trzymamy tutaj. */
+    .legal-prose {
+        @apply text-sm leading-relaxed;
+    }
+
+    .legal-prose h2 {
+        @apply mt-8 mb-3 text-base font-semibold;
+    }
+
+    .legal-prose h2:first-child {
+        @apply mt-0;
+    }
+
+    .legal-prose p {
+        @apply my-3;
+    }
+
+    .legal-prose ul,
+    .legal-prose ol {
+        @apply my-3 pl-6;
+    }
+
+    .legal-prose li + li {
+        @apply mt-1.5;
+    }
+
+    .legal-prose ul {
+        list-style: disc;
+    }
+
+    .legal-prose ol {
+        list-style: decimal;
+    }
+
+    .legal-prose ol.list-alpha {
+        list-style: lower-alpha;
+    }
+
+    .legal-prose li > ul {
+        @apply my-2;
+        list-style: circle;
+    }
+
+    .legal-prose a {
+        @apply underline underline-offset-2;
+    }
+
+    .legal-prose strong {
+        @apply font-semibold;
+    }
+
+    .legal-prose blockquote {
+        @apply my-4 border-l-4 pl-4 italic text-muted-foreground;
+    }
 }
 
 @page schedule-landscape {

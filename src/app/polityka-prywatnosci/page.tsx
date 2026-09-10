@@ -17,7 +17,7 @@ export default function PolitykaPrywatnosciPage() {
                     </Button>
                     <CardTitle className="text-2xl">Polityka prywatności (RODO) systemu Effixy</CardTitle>
                 </CardHeader>
-                <CardContent className="prose prose-sm max-w-none">
+                <CardContent className="legal-prose max-w-none">
                     <p className="text-muted-foreground italic mb-6">
                         Model współpracy: Klient jako Administrator danych, Effixy jako Podmiot Przetwarzający
                     </p>
@@ -30,7 +30,7 @@ export default function PolitykaPrywatnosciPage() {
                     </p>
                     <p>
                         W zakresie danych kontaktowych osób reprezentujących Klienta (np. administrator konta, osoba do kontaktu),
-                        Usługodawca może występować jako samodzielny Administrator danych.
+                        Usługodawca może występować jako Administrator danych.
                     </p>
 
                     <h2>2. Jakie dane mogą być przetwarzane w Systemie</h2>
@@ -40,7 +40,7 @@ export default function PolitykaPrywatnosciPage() {
                         <li><strong>Ewidencja czasu pracy:</strong> godziny start/stop, przerwy, nadgodziny, grafiki.</li>
                         <li><strong>Nieobecności:</strong> wnioski urlopowe, statusy akceptacji, rodzaje absencji.</li>
                         <li><strong>Dane lokalizacyjne:</strong> związane z rejestracją czasu pracy (tylko jeśli funkcja jest włączona).</li>
-                        <li><strong>Dane techniczne:</strong> logi dostępu, identyfikatory sesji (niezbędne dla bezpieczeństwa usługi).</li>
+                        <li><strong>Dane techniczne:</strong> logi dostępu, identyfikatory sesji – w zakresie niezbędnym dla bezpieczeństwa i działania usługi.</li>
                     </ul>
 
                     <h2>3. Cele przetwarzania</h2>
@@ -49,7 +49,7 @@ export default function PolitykaPrywatnosciPage() {
                         <li>świadczenia usługi Effixy (ewidencja czasu pracy, obsługa urlopów, raportowanie),</li>
                         <li>zapewnienia bezpieczeństwa Systemu oraz zapobiegania nadużyciom,</li>
                         <li>obsługi zgłoszeń i wsparcia technicznego dla Użytkowników,</li>
-                        <li>rozliczeń i fakturowania pomiędzy Usługodawcą a Klientem.</li>
+                        <li>rozliczeń i fakturowania (dane Klienta / osoby kontaktowej).</li>
                     </ul>
 
                     <h2>4. Podstawa prawna i odpowiedzialność Klienta</h2>
@@ -64,8 +64,8 @@ export default function PolitykaPrywatnosciPage() {
 
                     <h2>5. Odbiorcy danych i podwykonawcy</h2>
                     <p>
-                        Dane mogą być powierzane podwykonawcom Usługodawcy (np. dostawcy hostingu, infrastruktury chmurowej, usług e-mail)
-                        wyłącznie na podstawie odpowiednich umów powierzenia.
+                        Dane mogą być powierzane podwykonawcom Usługodawcy wyłącznie w zakresie niezbędnym do świadczenia usługi
+                        (np. dostawcy hostingu, infrastruktury chmurowej, usług e-mail), na podstawie odpowiednich umów powierzenia.
                     </p>
                     <blockquote>
                         Ważne: Dane nie są sprzedawane ani wykorzystywane do celów marketingowych w odniesieniu do Użytkowników Klienta.

@@ -4,7 +4,7 @@
  * podbij wartość (data wejścia w życie) — admini/managerowie zostaną
  * poproszeni o ponowną akceptację.
  */
-export const CURRENT_TERMS_VERSION = '2026-07-01';
+export const CURRENT_TERMS_VERSION = '2026-09-10';
 
 /** Data wejścia w życie aktualnej wersji regulaminu (do wyświetlenia). */
-export const CURRENT_TERMS_DATE = '1 lipca 2026';
+export const CURRENT_TERMS_DATE = '10 września 2026';
