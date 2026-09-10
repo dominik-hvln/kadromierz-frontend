@@ -16,6 +16,7 @@ export default function WorkNormsTab() {
 
     const [dailyNorm, setDailyNorm] = useState('8');
     const [countHolidays, setCountHolidays] = useState(true);
+    const [scheduleOnHolidays, setScheduleOnHolidays] = useState(false);
     const [nightStart, setNightStart] = useState('22:00');
     const [nightEnd, setNightEnd] = useState('06:00');
     const [loading, setLoading] = useState(true);
@@ -27,6 +28,7 @@ export default function WorkNormsTab() {
             .then(({ data }) => {
                 setDailyNorm(String(data.daily_norm_hours ?? 8));
                 setCountHolidays(data.count_holidays_as_work !== false);
+                setScheduleOnHolidays(data.schedule_on_holidays === true);
                 setNightStart(data.night_start ?? '22:00');
                 setNightEnd(data.night_end ?? '06:00');
             })
@@ -49,6 +51,7 @@ export default function WorkNormsTab() {
             await api.patch('/company-settings/work-norms', {
                 daily_norm_hours: norm,
                 count_holidays_as_work: countHolidays,
+                schedule_on_holidays: scheduleOnHolidays,
                 night_start: nightStart,
                 night_end: nightEnd,
             });
@@ -102,6 +105,23 @@ export default function WorkNormsTab() {
                     <Label htmlFor="count_holidays" className="cursor-pointer">Wliczaj święta do godzin pracy</Label>
                     <p className="text-xs text-muted-foreground">
                         Dni ustawowo wolne przypadające w dzień roboczy (wg grafiku działu) doliczane są jako godziny.
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-lg border p-4">
+                <Switch
+                    id="schedule_on_holidays"
+                    checked={scheduleOnHolidays}
+                    onCheckedChange={setScheduleOnHolidays}
+                    disabled={!isAdmin}
+                />
+                <div>
+                    <Label htmlFor="schedule_on_holidays" className="cursor-pointer">Generuj zmiany w święta</Label>
+                    <p className="text-xs text-muted-foreground">
+                        Domyślnie generator grafiku pomija dni ustawowo wolne. Włącz, jeśli firma pracuje
+                        365 dni w roku (np. hotel, gastronomia) — zmiany będą układane także w święta,
+                        a zaakceptowane urlopy będą się w nich poprawnie oznaczać.
                     </p>
                 </div>
             </div>
