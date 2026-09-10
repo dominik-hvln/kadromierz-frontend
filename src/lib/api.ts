@@ -126,6 +126,10 @@ export const superAdminApi = {
         const { data } = await api.patch(`/super-admin/users/${id}`, dto);
         return data;
     },
+    getUserLoginHistory: async (id: string, limit = 50) => {
+        const { data } = await api.get(`/super-admin/users/${id}/logins?limit=${limit}`);
+        return data;
+    },
     getCompanyUsers: async (id: string) => {
         const { data } = await api.get(`/super-admin/companies/${id}/users`);
         return data;
