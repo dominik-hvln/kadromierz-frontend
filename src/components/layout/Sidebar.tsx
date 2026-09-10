@@ -44,10 +44,10 @@ export const navLinks: NavLink[] = [
         roles: ['admin', 'manager']
     },
 
-    // ✅ SUPER ADMIN
+    // ✅ SUPER ADMIN — pełny panel żyje pod /admin (własny layout i nawigacja)
     {
-        href: '/dashboard/super-admin',
-        label: 'Super Admin',
+        href: '/admin',
+        label: 'Panel Super Admina',
         icon: ShieldCheck,
         roles: ['super_admin']
     },

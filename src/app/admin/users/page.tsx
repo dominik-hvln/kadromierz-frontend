@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Search, KeyRound, UserX, UserCheck, Loader2 } from 'lucide-react';
+import { Search, KeyRound, UserX, UserCheck, Loader2, Plus } from 'lucide-react';
+import { CreateUserDialog } from '@/components/super-admin/CreateUserDialog';
 
 const ROLE_LABEL: Record<string, string> = {
     super_admin: 'Super Admin',
@@ -21,6 +22,7 @@ export default function AdminUsersPage() {
     const [loading, setLoading] = useState(true);
     const [query, setQuery] = useState('');
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
 
     const fetchUsers = async () => {
         try {
@@ -78,9 +80,15 @@ export default function AdminUsersPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Użytkownicy</h1>
-                <p className="text-muted-foreground text-sm">Wszyscy użytkownicy w systemie ({users.length}).</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Użytkownicy</h1>
+                    <p className="text-muted-foreground text-sm">Wszyscy użytkownicy w systemie ({users.length}).</p>
+                </div>
+                <Button onClick={() => setIsCreateOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Dodaj użytkownika
+                </Button>
             </div>
 
             <div className="relative max-w-md">
@@ -147,6 +155,12 @@ export default function AdminUsersPage() {
                     </TableBody>
                 </Table>
             </div>
+
+            <CreateUserDialog
+                open={isCreateOpen}
+                onOpenChange={setIsCreateOpen}
+                onSuccess={fetchUsers}
+            />
         </div>
     );
 }
