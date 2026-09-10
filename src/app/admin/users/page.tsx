@@ -115,23 +115,39 @@ export default function AdminUsersPage() {
                     </TableHeader>
                     <TableBody>
                         {filtered.map((u) => {
+                            const archived = Boolean(u.archived_at);
                             const inactive = u.status === 'inactive';
                             return (
-                                <TableRow key={u.id} className={inactive ? 'opacity-60' : ''}>
+                                <TableRow key={u.id} className={inactive || archived ? 'opacity-60' : ''}>
                                     <TableCell className="font-medium">{[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}</TableCell>
                                     <TableCell className="text-sm">{u.email}</TableCell>
                                     <TableCell><Badge variant="secondary">{ROLE_LABEL[u.role] || u.role}</Badge></TableCell>
                                     <TableCell className="text-sm">{u.company_name || <span className="text-gray-400">—</span>}</TableCell>
                                     <TableCell className="text-center">
-                                        {inactive
+                                        {archived ? (
+                                            <span
+                                                className="text-gray-500 text-xs font-semibold"
+                                                title={`Zarchiwizowany ${new Date(u.archived_at).toLocaleDateString('pl-PL')}`}
+                                            >
+                                                Zarchiwizowany
+                                            </span>
+                                        ) : inactive
                                             ? <span className="text-red-600 text-xs font-semibold">Nieaktywny</span>
                                             : <span className="text-green-600 text-xs font-semibold">Aktywny</span>}
                                     </TableCell>
                                     <TableCell className="text-right space-x-1">
-                                        <Button variant="ghost" size="sm" disabled={busyId === u.id} onClick={() => handleReset(u)} title="Reset hasła">
+                                        {/* Konto w Auth zarchiwizowanego pracownika już nie istnieje,
+                                            więc reset hasła i zmiana statusu nie mają na czym działać. */}
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            disabled={busyId === u.id || archived}
+                                            onClick={() => handleReset(u)}
+                                            title={archived ? 'Konto zarchiwizowane — brak konta logowania' : 'Reset hasła'}
+                                        >
                                             {busyId === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
                                         </Button>
-                                        {u.role !== 'super_admin' && (
+                                        {u.role !== 'super_admin' && !archived && (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
