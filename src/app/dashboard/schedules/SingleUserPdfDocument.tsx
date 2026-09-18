@@ -168,23 +168,30 @@ export const SingleUserPdfDocument = ({ month, year, events, holidays, user }: P
               let status = '-';
               let hours = '-';
 
+              // Kolorystyka dnia zależy od kalendarza, ale treść wiersza
+              // od grafiku: praca w święto ma się pokazać, a nie zniknąć pod "WOLNE".
               if (isHoliday) {
                   rowStyle = { ...styles.tableRow, ...styles.bgHoliday };
                   textStyle = styles.textCellHoliday;
-                  status = `WOLNE (${isHoliday.name || ''})`;
-              } else if (ev) {
+              } else if (isWeekend) {
+                  rowStyle = { ...styles.tableRow, ...styles.bgWeekend };
+                  textStyle = styles.textCellWeekend;
+              }
+
+              if (ev) {
                   const display = getScheduleStatusText(
                       ev.status,
                       ev.raw?.requires_replacement,
                       ev.raw?.shift_name,
                       ev.raw?.start_time,
                       ev.raw?.end_time,
+                      ev.raw?.absence_type,
                   );
                   status = display.status;
                   hours = display.hours;
+              } else if (isHoliday) {
+                  status = `WOLNE (${isHoliday.name || ''})`;
               } else if (isWeekend) {
-                  rowStyle = { ...styles.tableRow, ...styles.bgWeekend };
-                  textStyle = styles.textCellWeekend;
                   status = 'Weekend';
               }
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Download, FileText, Printer, ImageIcon } from 'lucide-react';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getAbsenceCode } from '@/lib/schedule-display';
 
 import { CollectiveSchedulePDFDocument } from './CollectivePdfDocument';
 import { SingleUserPdfDocument } from './SingleUserPdfDocument';
@@ -54,14 +55,13 @@ export default function ExportButtons({ month, year, events, holidays, departmen
                 const isHoliday = holidays.find(h => h.date === dateStr);
                 const ev = events.find(e => e.userId === user.id && e.raw?.date === dateStr);
                 
-                if (isHoliday) row.push('WOLNE');
-                else if (ev) {
-                    // Te same oznaczenia co w PDF — wcześniej urlop/L4 wyświetlał się jako nazwa zmiany.
-                    if (ev.status === 'on_leave') row.push('U');
-                    else if (ev.status === 'sick_leave') row.push('L4');
-                    else if (ev.status === 'replacement_needed') row.push('L4/URL');
-                    else row.push(ev.raw.shift_name);
-                } else row.push('-');
+                // Te same oznaczenia co w PDF. Wpis grafiku ma pierwszeństwo
+                // przed świętem — inaczej praca w święto ginie w eksporcie.
+                if (ev) {
+                    const absenceCode = getAbsenceCode(ev.status, ev.raw?.absence_type);
+                    row.push(absenceCode || ev.raw.shift_name);
+                } else if (isHoliday) row.push('WOLNE');
+                else row.push('-');
             });
             csvContent += row.join(";") + "\n";
         });

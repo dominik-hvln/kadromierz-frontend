@@ -53,18 +53,19 @@ export default function SingleUserPrint({ month, year, events, holidays, user }:
                         let status = '-';
                         let hours = '-';
 
-                        if (isHoliday) {
-                            status = `🎈 WOLNE (${isHoliday.name})`;
-                        } else if (ev) {
+                        if (ev) {
                             const display = getScheduleStatusText(
                                 ev.status,
                                 ev.raw?.requires_replacement,
                                 ev.raw?.shift_name,
                                 ev.raw?.start_time,
                                 ev.raw?.end_time,
+                                ev.raw?.absence_type,
                             );
                             status = display.status;
                             hours = display.hours;
+                        } else if (isHoliday) {
+                            status = `🎈 WOLNE (${isHoliday.name})`;
                         } else if (isWeekend) {
                             status = 'Wolny Weekend';
                         }

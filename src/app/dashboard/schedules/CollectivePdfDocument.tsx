@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { Page, Text, View, Document, StyleSheet, Font, pdf } from '@react-pdf/renderer';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getAbsenceCode, ABSENCE_LEGEND } from '@/lib/schedule-display';
 
 // Rejestrujemy czcionkę z polskimi znakami pobieraną dynamicznie by ominąć problematyczne w Base64 / WOFF2
 Font.register({
@@ -140,6 +141,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: '90%',
   },
+  legendCodes: {
+    fontSize: 7,
+    color: '#666',
+    marginTop: 4,
+  },
   holidayText: {
     color: '#d97706',
     fontSize: 8,
@@ -252,16 +258,19 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
                   if (isWeekend) colStyle = styles.colDayWeekend;
                   if (isHoliday) colStyle = styles.colDayHoliday;
 
+                  // Wpis grafiku ma pierwszeństwo przed świętem: kolumna zostaje
+                  // żółta, ale pokazuje faktyczną zmianę albo nieobecność.
+                  // "W" zostaje tylko tam, gdzie w święto nikt nie pracuje.
+                  const absenceCode = ev ? getAbsenceCode(ev.status, ev.raw?.absence_type) : null;
+
                   return (
                     <View key={dateStr} style={colStyle}>
-                      {isHoliday ? (
+                      {ev ? (
+                          absenceCode
+                              ? <Text style={styles.shiftL4}>{absenceCode}</Text>
+                              : renderBadge(ev.raw.shift_name, ev.raw.start_time, ev.raw.end_time)
+                      ) : isHoliday ? (
                           <Text style={styles.holidayText}>W</Text>
-                      ) : ev ? (
-                          ev.status === 'on_leave'
-                              ? <Text style={styles.shiftL4}>U</Text>
-                              : ev.status === 'sick_leave' || ev.status === 'replacement_needed'
-                                  ? <Text style={styles.shiftL4}>L4</Text>
-                                  : renderBadge(ev.raw.shift_name, ev.raw.start_time, ev.raw.end_time)
                       ) : (
                           <Text style={{ fontSize: 7, color: '#aaa' }}>-</Text>
                       )}
@@ -277,8 +286,9 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
             <View style={styles.legendItem}><View style={styles.legendBoxPopo} /><Text style={styles.legendText}>Popołudnie</Text></View>
             <View style={styles.legendItem}><View style={styles.legendBoxHoliday} /><Text style={styles.legendText}>Święto</Text></View>
             <View style={styles.legendItem}><View style={styles.legendBoxWeekend} /><Text style={styles.legendText}>Weekend</Text></View>
-            <View style={styles.legendItem}><View style={styles.legendBoxL4} /><Text style={styles.legendText}>Urlop/L4</Text></View>
+            <View style={styles.legendItem}><View style={styles.legendBoxL4} /><Text style={styles.legendText}>Nieobecność</Text></View>
         </View>
+        <Text style={styles.legendCodes}>{ABSENCE_LEGEND}</Text>
       </Page>
     </Document>
   );

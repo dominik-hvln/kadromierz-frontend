@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { getDaysInMonth, format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getAbsenceCode, ABSENCE_LEGEND } from '@/lib/schedule-display';
 
 interface CollectiveSchedulePrintProps {
     month: number;
@@ -100,12 +101,17 @@ export default function CollectiveSchedulePrint({ month, year, events, holidays 
                                     return (
                                         <td key={dateStr} className={`p-1 border-r border-gray-100 align-middle ${bgClass}`}>
                                             <div className="w-full flex items-center justify-center h-8">
-                                                {isHoliday ? (
-                                                    <span className="text-[10px] font-bold text-amber-600">W</span>
-                                                ) : ev ? (
-                                                    ev.status === 'replacement_needed' 
-                                                        ? <div className="text-[9px] font-bold text-red-700 bg-red-100 rounded-full py-[2px] px-1 w-full text-center">L4/Urlop</div>
+                                                {ev ? (
+                                                    // Wcześniej urlop bez zastępstwa rysował się jako zwykła zmiana —
+                                                    // teraz każda nieobecność ma swój kod, tak jak w PDF.
+                                                    getAbsenceCode(ev.status, ev.raw?.absence_type)
+                                                        ? <div className="text-[9px] font-bold text-red-700 bg-red-100 rounded-full py-[2px] px-1 w-full text-center">
+                                                              {getAbsenceCode(ev.status, ev.raw?.absence_type)}
+                                                              {ev.raw?.requires_replacement || ev.status === 'replacement_needed' ? ' (zast.)' : ''}
+                                                          </div>
                                                         : renderShiftBadge(ev.raw.shift_name, ev.raw.start_time, ev.raw.end_time)
+                                                ) : isHoliday ? (
+                                                    <span className="text-[10px] font-bold text-amber-600">W</span>
                                                 ) : (
                                                     <span className="text-gray-300 text-[10px]">-</span>
                                                 )}
@@ -125,8 +131,9 @@ export default function CollectiveSchedulePrint({ month, year, events, holidays 
                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-indigo-100 rounded-full"></div> Popołudnie</div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-amber-50 border border-amber-200 rounded"></div> Dzień Wolny / Święto</div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-50 border border-red-200 rounded"></div> Weekend</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-100 rounded-full"></div> Urlop/L4</div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-100 rounded-full"></div> Nieobecność</div>
             </div>
+            <div className="mt-2 text-[10px] text-gray-500">{ABSENCE_LEGEND}</div>
         </div>
     );
 }

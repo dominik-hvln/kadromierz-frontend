@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { Calendar, dateFnsLocalizer, View, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { getAbsenceCode } from '@/lib/schedule-display';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,12 +95,12 @@ export default function SchedulesPage() {
                        title += ` - ${s.users?.first_name} ${s.users?.last_name}`;
                    }
 
-                   const absencePrefix =
-                       s.status === 'on_leave'
-                           ? (s.requires_replacement ? '[URLOP/zast.] ' : '[URLOP] ')
-                           : s.status === 'sick_leave' || s.status === 'replacement_needed'
-                               ? '[L4/zast.] '
-                               : '';
+                   // Ten sam słownik kodów co w PDF, wydrukach i eksporcie.
+                   const absenceCode = getAbsenceCode(s.status, s.absence_type);
+                   const needsReplacement = s.requires_replacement || s.status === 'replacement_needed';
+                   const absencePrefix = absenceCode
+                       ? `[${absenceCode}${needsReplacement ? '/zast.' : ''}] `
+                       : '';
                    return {
                        id: s.id,
                        title: `${absencePrefix}${title}`,

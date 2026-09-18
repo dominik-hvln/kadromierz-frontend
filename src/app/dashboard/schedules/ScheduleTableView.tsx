@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { getDaysInMonth, format } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { getScheduleCellLabel } from '@/lib/schedule-display';
+import { getScheduleCellLabel, getAbsenceCode } from '@/lib/schedule-display';
 
 interface ScheduleTableViewProps {
     month: number;
@@ -83,20 +83,30 @@ export default function ScheduleTableView({ month, year, events, holidays = [], 
                                 let text = '-';
                                 let textColor = 'text-gray-300';
                                 
+                                // Święto koloruje komórkę, ale nie zastępuje treści —
+                                // firmy pracujące w święta muszą widzieć zmianę.
                                 if (isHoliday) {
                                     bgClass = 'bg-amber-50';
                                     textColor = 'text-amber-600 font-bold';
                                     text = 'WOLNE';
-                                } else if (ev) {
-                                    if (['on_leave', 'sick_leave', 'replacement_needed'].includes(ev.status)) {
-                                        bgClass = ev.status === 'on_leave' ? 'bg-violet-100' : 'bg-rose-100';
-                                        textColor = ev.status === 'on_leave' ? 'text-violet-700 font-bold' : 'text-rose-700 font-bold';
-                                        text = getScheduleCellLabel(ev.status, ev.raw?.requires_replacement, ev.raw?.shift_name);
+                                }
+
+                                if (ev) {
+                                    const absenceCode = getAbsenceCode(ev.status, ev.raw?.absence_type);
+                                    if (absenceCode) {
+                                        const isSick = absenceCode === 'L4';
+                                        bgClass = isSick ? 'bg-rose-100' : 'bg-violet-100';
+                                        textColor = isSick ? 'text-rose-700 font-bold' : 'text-violet-700 font-bold';
                                     } else {
                                         bgClass = 'bg-blue-50';
                                         textColor = 'text-blue-700 font-medium';
-                                        text = getScheduleCellLabel(ev.status, false, ev.raw.shift_name);
                                     }
+                                    text = getScheduleCellLabel(
+                                        ev.status,
+                                        ev.raw?.requires_replacement,
+                                        ev.raw?.shift_name,
+                                        ev.raw?.absence_type,
+                                    );
                                 }
 
                                 return (
