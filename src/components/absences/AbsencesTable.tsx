@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Absence } from '@/app/dashboard/absences/page';
+import { absenceTypeLabel } from '@/lib/absence-types';
 
 interface Props {
     absences: Absence[];
@@ -38,21 +39,14 @@ export default function AbsencesTable({ absences, isLoading, isManagerView, onSt
         }
     };
 
-    const getTypeLabel = (type: string) => {
-        switch (type) {
-            case 'urlop_wypoczynkowy': return 'Urlop Wypoczynkowy';
-            case 'l4': return 'Zwolnienie Lekarskie (L4)';
-            case 'urlop_na_zadanie': return 'Urlop na Żądanie';
-            default: return 'Inne';
-        }
-    };
-
     return (
         <Table>
             <TableHeader>
                 <TableRow>
                     {isManagerView && <TableHead>Pracownik</TableHead>}
                     <TableHead>Typ</TableHead>
+                    {/* API zwraca powód tylko autorowi wniosku oraz jego managerowi / adminowi. */}
+                    <TableHead>Powód</TableHead>
                     <TableHead>Od</TableHead>
                     <TableHead>Do</TableHead>
                     <TableHead>Status</TableHead>
@@ -68,7 +62,12 @@ export default function AbsencesTable({ absences, isLoading, isManagerView, onSt
                                 {absence.user?.first_name} {absence.user?.last_name}
                             </TableCell>
                         )}
-                        <TableCell>{getTypeLabel(absence.type)}</TableCell>
+                        <TableCell>{absenceTypeLabel(absence.type)}</TableCell>
+                        <TableCell className="max-w-[240px] text-sm text-muted-foreground">
+                            <span className="line-clamp-2" title={absence.reason || undefined}>
+                                {absence.reason?.trim() || '—'}
+                            </span>
+                        </TableCell>
                         <TableCell>{format(new Date(absence.start_date), 'dd MMM yyyy', { locale: pl })}</TableCell>
                         <TableCell>{format(new Date(absence.end_date), 'dd MMM yyyy', { locale: pl })}</TableCell>
                         <TableCell>

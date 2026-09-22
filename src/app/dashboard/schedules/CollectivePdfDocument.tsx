@@ -4,6 +4,13 @@ import React, { useMemo } from 'react';
 import { Page, Text, View, Document, StyleSheet, Font, pdf } from '@react-pdf/renderer';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import {
+  ScheduleOverlay,
+  SCHEDULE_LEGEND,
+  collectScheduleUsers,
+  indexOverlay,
+  resolveScheduleCell,
+} from '@/lib/schedule-display';
 
 // Rejestrujemy czcionkę z polskimi znakami pobieraną dynamicznie by ominąć problematyczne w Base64 / WOFF2
 Font.register({
@@ -131,9 +138,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     width: '90%',
   },
-  shiftL4: {
-    backgroundColor: '#fee2e2',
-    color: '#b91c1c',
+  shiftAbsence: {
+    backgroundColor: '#ede9fe',
+    color: '#6d28d9',
     borderRadius: 3,
     padding: 2,
     fontSize: 7,
@@ -158,7 +165,7 @@ const styles = StyleSheet.create({
   legendBoxPopo: { width: 10, height: 10, backgroundColor: '#e0e7ff', borderRadius: 2 },
   legendBoxHoliday: { width: 10, height: 10, backgroundColor: '#fffbeb', border: '1pt solid #fde68a', borderRadius: 2 },
   legendBoxWeekend: { width: 10, height: 10, backgroundColor: '#fef2f2', border: '1pt solid #fecaca', borderRadius: 2 },
-  legendBoxL4: { width: 10, height: 10, backgroundColor: '#fee2e2', borderRadius: 2 },
+  legendBoxAbsence: { width: 10, height: 10, backgroundColor: '#ede9fe', borderRadius: 2 },
   legendText: { fontSize: 8, color: '#555' }
 });
 
@@ -167,36 +174,23 @@ interface Props {
   year: number;
   events: any[];
   holidays: any[];
+  overlay: ScheduleOverlay;
 }
 
-export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }: Props) => {
+export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays, overlay }: Props) => {
   const daysInMonth = useMemo(() => {
       const date = new Date(year, month - 1, 1);
       const count = getDaysInMonth(date);
       return Array.from({ length: count }, (_, i) => new Date(year, month - 1, i + 1));
   }, [month, year]);
 
-  const users = useMemo(() => {
-      const usersMap = new Map();
-      events.forEach(e => {
-          if (!usersMap.has(e.userId) && e.raw?.users) {
-              usersMap.set(e.userId, e.raw.users);
-          }
-      });
-      return Array.from(usersMap.values()).sort((a, b) => a.last_name.localeCompare(b.last_name));
-  }, [events]);
-
-  // Skraca godzinę: "07:00" -> "7", "07:30" -> "7:30"
-  const fmtHour = (t?: string) => {
-      if (!t) return '';
-      const [h, m] = t.split(':');
-      return m && m !== '00' ? `${parseInt(h, 10)}:${m}` : `${parseInt(h, 10)}`;
-  };
+  // Wydruk: bez wniosków oczekujących — tylko to, co już zatwierdzone.
+  const users = useMemo(() => collectScheduleUsers(events, overlay, false), [events, overlay]);
+  const absenceIndex = useMemo(() => indexOverlay(overlay), [overlay]);
 
   // Pokazuje zdefiniowane godziny pracy (np. "7-19"); kolor wg typu zmiany.
-  const renderBadge = (shiftName: string, startTime?: string, endTime?: string) => {
+  const renderBadge = (shiftName: string, hours: string) => {
       const name = (shiftName || '').toLowerCase();
-      const hours = startTime && endTime ? `${fmtHour(startTime)}-${fmtHour(endTime)}` : (shiftName || '').substring(0, 5);
       if (name.includes('rano')) return <Text style={styles.shiftBadgeRano}>{hours}</Text>;
       if (name.includes('pop')) return <Text style={styles.shiftBadgePopo}>{hours}</Text>;
       if (name.includes('noc')) return <Text style={styles.shiftBadgeNoc}>{hours}</Text>;
@@ -225,8 +219,10 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
             </View>
             {daysInMonth.map(day => {
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                const isHoliday = holidays.some(h => h.date === format(day, 'yyyy-MM-dd'));
+                const headStyle = isHoliday ? styles.colDayHoliday : isWeekend ? styles.colDayWeekend : styles.colDay;
                 return (
-                  <View key={day.toISOString()} style={isWeekend ? styles.colDayWeekend : styles.colDay}>
+                  <View key={day.toISOString()} style={headStyle}>
                     <Text style={styles.textDayHeaderNum}>{format(day, 'dd')}</Text>
                     <Text style={styles.textDayHeaderName}>{format(day, 'eee', { locale: pl }).substring(0, 2)}</Text>
                   </View>
@@ -245,23 +241,29 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
               {daysInMonth.map(day => {
                   const dateStr = format(day, 'yyyy-MM-dd');
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                  const isHoliday = holidays.find(h => h.date === dateStr);
-                  const ev = events.find(e => e.userId === user.id && e.raw?.date === dateStr);
+                  const holiday = holidays.find(h => h.date === dateStr);
+                  const cell = resolveScheduleCell({
+                      event: events.find(e => e.userId === user.id && e.raw?.date === dateStr),
+                      absencePending: absenceIndex.get(`${user.id}|${dateStr}`),
+                      holiday,
+                      isWeekend,
+                      workOnWeekends: overlay.workOnWeekends,
+                      workOnHolidays: overlay.workOnHolidays,
+                      includePending: false,
+                  });
 
                   let colStyle = styles.colDay;
                   if (isWeekend) colStyle = styles.colDayWeekend;
-                  if (isHoliday) colStyle = styles.colDayHoliday;
+                  if (holiday) colStyle = styles.colDayHoliday;
 
                   return (
                     <View key={dateStr} style={colStyle}>
-                      {isHoliday ? (
-                          <Text style={styles.holidayText}>W</Text>
-                      ) : ev ? (
-                          ev.status === 'on_leave'
-                              ? <Text style={styles.shiftL4}>U</Text>
-                              : ev.status === 'sick_leave' || ev.status === 'replacement_needed'
-                                  ? <Text style={styles.shiftL4}>L4</Text>
-                                  : renderBadge(ev.raw.shift_name, ev.raw.start_time, ev.raw.end_time)
+                      {cell.kind === 'absence' ? (
+                          <Text style={styles.shiftAbsence}>{cell.label}</Text>
+                      ) : cell.kind === 'holiday' ? (
+                          <Text style={styles.holidayText}>{cell.label}</Text>
+                      ) : cell.kind === 'shift' ? (
+                          renderBadge(cell.shiftName, cell.hours)
                       ) : (
                           <Text style={{ fontSize: 7, color: '#aaa' }}>-</Text>
                       )}
@@ -275,9 +277,13 @@ export const CollectiveSchedulePDFDocument = ({ month, year, events, holidays }:
         <View style={styles.legend}>
             <View style={styles.legendItem}><View style={styles.legendBoxRano} /><Text style={styles.legendText}>Rano</Text></View>
             <View style={styles.legendItem}><View style={styles.legendBoxPopo} /><Text style={styles.legendText}>Popołudnie</Text></View>
-            <View style={styles.legendItem}><View style={styles.legendBoxHoliday} /><Text style={styles.legendText}>Święto</Text></View>
             <View style={styles.legendItem}><View style={styles.legendBoxWeekend} /><Text style={styles.legendText}>Weekend</Text></View>
-            <View style={styles.legendItem}><View style={styles.legendBoxL4} /><Text style={styles.legendText}>Urlop/L4</Text></View>
+            <View style={styles.legendItem}>
+                <View style={styles.legendBoxHoliday} />
+                <Text style={styles.legendText}>{overlay.workOnHolidays ? 'Święto (dzień pracy)' : SCHEDULE_LEGEND.holiday}</Text>
+            </View>
+            <View style={styles.legendItem}><View style={styles.legendBoxAbsence} /><Text style={styles.legendText}>{SCHEDULE_LEGEND.absence}</Text></View>
+            <View style={styles.legendItem}><View style={styles.legendBoxAbsence} /><Text style={styles.legendText}>{SCHEDULE_LEGEND.replacement}</Text></View>
         </View>
       </Page>
     </Document>

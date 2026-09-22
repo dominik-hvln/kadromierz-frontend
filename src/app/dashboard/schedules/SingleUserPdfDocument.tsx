@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
 import { format, getDaysInMonth } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { getScheduleStatusText } from '@/lib/schedule-display';
+import { ScheduleOverlay, indexOverlay, resolveScheduleCell } from '@/lib/schedule-display';
 
 // Podpinamy tę samą bezpieczną czcionkę wektorową
 Font.register({
@@ -122,15 +122,17 @@ interface Props {
   year: number;
   events: any[];
   holidays: any[];
+  overlay: ScheduleOverlay;
   user: any;
 }
 
-export const SingleUserPdfDocument = ({ month, year, events, holidays, user }: Props) => {
+export const SingleUserPdfDocument = ({ month, year, events, holidays, overlay, user }: Props) => {
   const daysInMonth = useMemo(() => {
       const date = new Date(year, month - 1, 1);
       const count = getDaysInMonth(date);
       return Array.from({ length: count }, (_, i) => new Date(year, month - 1, i + 1));
   }, [month, year]);
+  const absenceIndex = useMemo(() => indexOverlay(overlay), [overlay]);
 
   if (!user) return null;
 
@@ -152,36 +154,47 @@ export const SingleUserPdfDocument = ({ month, year, events, holidays, user }: P
             <View style={{...styles.colData, borderRight: '1pt solid #ccc'}}><Text style={styles.textHeader}>Data</Text></View>
             <View style={{...styles.colDzien, borderRight: '1pt solid #ccc'}}><Text style={styles.textHeader}>Dzień</Text></View>
             <View style={{...styles.colStatus, borderRight: '1pt solid #ccc'}}><Text style={styles.textHeader}>Status / Zmiana</Text></View>
-            <View style={styles.colGodziny}><Text style={styles.textHeader}>Godziny racy</Text></View>
+            <View style={styles.colGodziny}><Text style={styles.textHeader}>Godziny pracy</Text></View>
           </View>
 
           {/* Body Rows */}
           {daysInMonth.map(day => {
               const dateStr = format(day, 'yyyy-MM-dd');
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-              const isHoliday = holidays.find(h => h.date === dateStr);
-              const ev = events.find(e => e.userId === user.id && e.raw?.date === dateStr);
+              const holiday = holidays.find(h => h.date === dateStr);
+              const cell = resolveScheduleCell({
+                  event: events.find(e => e.userId === user.id && e.raw?.date === dateStr),
+                  absencePending: absenceIndex.get(`${user.id}|${dateStr}`),
+                  holiday,
+                  isWeekend,
+                  workOnWeekends: overlay.workOnWeekends,
+                  workOnHolidays: overlay.workOnHolidays,
+                  includePending: false,
+              });
 
               let rowStyle: any = styles.tableRow;
               let textStyle = styles.textCell;
-              
+
               let status = '-';
               let hours = '-';
 
-              if (isHoliday) {
+              if (cell.kind === 'absence') {
+                  // Bez rodzaju nieobecności — wydruk może trafić do innych osób.
+                  status = cell.needsReplacement ? 'Nieobecność (wymaga zastępstwa)' : 'Nieobecność';
+              } else if (cell.kind === 'holiday') {
                   rowStyle = { ...styles.tableRow, ...styles.bgHoliday };
                   textStyle = styles.textCellHoliday;
-                  status = `WOLNE (${isHoliday.name || ''})`;
-              } else if (ev) {
-                  const display = getScheduleStatusText(
-                      ev.status,
-                      ev.raw?.requires_replacement,
-                      ev.raw?.shift_name,
-                      ev.raw?.start_time,
-                      ev.raw?.end_time,
-                  );
-                  status = display.status;
-                  hours = display.hours;
+                  status = `Święto — wolne (${cell.holidayName})`;
+              } else if (cell.kind === 'shift') {
+                  if (cell.isHoliday) {
+                      rowStyle = { ...styles.tableRow, ...styles.bgHoliday };
+                  }
+                  status = cell.holidayName ? `${cell.shiftName} (praca w święto: ${cell.holidayName})` : cell.shiftName;
+                  hours = cell.hours;
+              } else if (cell.isHoliday) {
+                  rowStyle = { ...styles.tableRow, ...styles.bgHoliday };
+                  textStyle = styles.textCellHoliday;
+                  status = 'Święto';
               } else if (isWeekend) {
                   rowStyle = { ...styles.tableRow, ...styles.bgWeekend };
                   textStyle = styles.textCellWeekend;

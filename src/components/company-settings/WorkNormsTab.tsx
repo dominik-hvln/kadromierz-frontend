@@ -19,6 +19,7 @@ export default function WorkNormsTab() {
     const [scheduleOnHolidays, setScheduleOnHolidays] = useState(false);
     const [nightStart, setNightStart] = useState('22:00');
     const [nightEnd, setNightEnd] = useState('06:00');
+    const [workOnWeekends, setWorkOnWeekends] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -31,6 +32,7 @@ export default function WorkNormsTab() {
                 setScheduleOnHolidays(data.schedule_on_holidays === true);
                 setNightStart(data.night_start ?? '22:00');
                 setNightEnd(data.night_end ?? '06:00');
+                setWorkOnWeekends(data.work_on_weekends === true);
             })
             .catch(() => toast.error('Nie udało się pobrać ustawień czasu pracy'))
             .finally(() => setLoading(false));
@@ -54,6 +56,7 @@ export default function WorkNormsTab() {
                 schedule_on_holidays: scheduleOnHolidays,
                 night_start: nightStart,
                 night_end: nightEnd,
+                work_on_weekends: workOnWeekends,
             });
             toast.success('Zapisano ustawienia czasu pracy');
         } catch {
@@ -94,34 +97,59 @@ export default function WorkNormsTab() {
                 <p className="text-xs text-muted-foreground">Używana tylko, gdy dzień roboczy nie ma zdefiniowanych godzin zmiany. Dla 1/2 etatu i normy 8h liczone jest 4h/dzień.</p>
             </div>
 
-            <div className="flex items-start gap-3 rounded-lg border p-4">
-                <Switch
-                    id="count_holidays"
-                    checked={countHolidays}
-                    onCheckedChange={setCountHolidays}
-                    disabled={!isAdmin}
-                />
-                <div>
-                    <Label htmlFor="count_holidays" className="cursor-pointer">Wliczaj święta do godzin pracy</Label>
-                    <p className="text-xs text-muted-foreground">
-                        Dni ustawowo wolne przypadające w dzień roboczy (wg grafiku działu) doliczane są jako godziny.
-                    </p>
+            <div className="space-y-3 border-t pt-6">
+                <h3 className="text-lg font-semibold">Dni pracy firmy</h3>
+                <p className="text-sm text-muted-foreground">
+                    Dopasuj do branży. Ustawienia wpływają na generowanie grafiku, oznaczenia na grafiku
+                    i w PDF oraz na wyliczenia w ewidencji (np. czy sobota w trakcie urlopu jest dniem urlopu).
+                </p>
+
+                <div className="flex items-start gap-3 rounded-lg border p-4">
+                    <Switch
+                        id="work_on_weekends"
+                        checked={workOnWeekends}
+                        onCheckedChange={setWorkOnWeekends}
+                        disabled={!isAdmin}
+                    />
+                    <div>
+                        <Label htmlFor="work_on_weekends" className="cursor-pointer">Praca w weekendy</Label>
+                        <p className="text-xs text-muted-foreground">
+                            Wyłączone: sobota i niedziela są zawsze wolne. Włączone: o tym, które dni są robocze,
+                            decydują ustawienia działu w zakładce <strong>Grafik Zmian</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-lg border p-4">
+                    <Switch
+                        id="schedule_on_holidays"
+                        checked={scheduleOnHolidays}
+                        onCheckedChange={setScheduleOnHolidays}
+                        disabled={!isAdmin}
+                    />
+                    <div>
+                        <Label htmlFor="schedule_on_holidays" className="cursor-pointer">Praca w święta</Label>
+                        <p className="text-xs text-muted-foreground">
+                            Wyłączone: święto jest dniem wolnym — grafik nie planuje zmian, na grafiku widać „ŚW”.
+                            Włączone: święto to zwykły dzień pracy, zmiany są planowane, a dzień jest tylko wyróżniony.
+                        </p>
+                    </div>
                 </div>
             </div>
 
             <div className="flex items-start gap-3 rounded-lg border p-4">
                 <Switch
-                    id="schedule_on_holidays"
-                    checked={scheduleOnHolidays}
-                    onCheckedChange={setScheduleOnHolidays}
-                    disabled={!isAdmin}
+                    id="count_holidays"
+                    checked={countHolidays}
+                    onCheckedChange={setCountHolidays}
+                    disabled={!isAdmin || scheduleOnHolidays}
                 />
                 <div>
-                    <Label htmlFor="schedule_on_holidays" className="cursor-pointer">Generuj zmiany w święta</Label>
+                    <Label htmlFor="count_holidays" className="cursor-pointer">Wliczaj święta do godzin pracy</Label>
                     <p className="text-xs text-muted-foreground">
-                        Domyślnie generator grafiku pomija dni ustawowo wolne. Włącz, jeśli firma pracuje
-                        365 dni w roku (np. hotel, gastronomia) — zmiany będą układane także w święta,
-                        a zaakceptowane urlopy będą się w nich poprawnie oznaczać.
+                        {scheduleOnHolidays
+                            ? 'Nie dotyczy — firma pracuje w święta, więc liczą się tylko faktycznie przepracowane godziny.'
+                            : 'Dni ustawowo wolne przypadające w dzień roboczy (wg grafiku działu) doliczane są jako godziny.'}
                     </p>
                 </div>
             </div>

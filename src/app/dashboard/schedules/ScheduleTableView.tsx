@@ -3,44 +3,43 @@
 import React, { useMemo } from 'react';
 import { getDaysInMonth, format } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { getScheduleCellLabel } from '@/lib/schedule-display';
+import {
+    ScheduleOverlay,
+    SCHEDULE_LEGEND,
+    collectScheduleUsers,
+    indexOverlay,
+    resolveScheduleCell,
+} from '@/lib/schedule-display';
 
 interface ScheduleTableViewProps {
     month: number;
     year: number;
     events: any[];
     holidays: any[];
+    overlay: ScheduleOverlay;
     departmentId: string;
     onRefresh: () => void;
 }
 
-export default function ScheduleTableView({ month, year, events, holidays = [], departmentId, onRefresh }: ScheduleTableViewProps) {
+export default function ScheduleTableView({ month, year, events, holidays = [], overlay, departmentId }: ScheduleTableViewProps) {
     const daysInMonth = useMemo(() => {
         const date = new Date(year, month - 1, 1);
         const count = getDaysInMonth(date);
         return Array.from({ length: count }, (_, i) => new Date(year, month - 1, i + 1));
     }, [month, year]);
 
-    const usersMap = useMemo(() => {
-        const map = new Map();
-        events.forEach(e => {
-            if (!map.has(e.userId) && e.raw?.users) {
-                map.set(e.userId, e.raw.users);
-            }
-        });
-        return Array.from(map.values()).sort((a, b) => a.last_name.localeCompare(b.last_name));
-    }, [events]);
+    // Tabela jest widokiem managera/admina — pokazujemy też wnioski oczekujące.
+    const users = useMemo(() => collectScheduleUsers(events, overlay, true), [events, overlay]);
+    const absenceIndex = useMemo(() => indexOverlay(overlay), [overlay]);
 
-    const getEventForDay = (userId: string, date: Date) => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        return events.find(e => e.userId === userId && e.raw?.date === dateStr);
-    };
+    const getEventForDay = (userId: string, dateStr: string) =>
+        events.find(e => e.userId === userId && e.raw?.date === dateStr);
 
     if (!departmentId) {
         return <div className="p-8 text-center text-gray-500">Wybierz dział, aby zobaczyć tabelę grafiku.</div>;
     }
 
-    if (usersMap.length === 0) {
+    if (users.length === 0) {
         return <div className="p-8 text-center text-gray-500">Brak danych do wyświetlenia (grafik pusty lub brak pracowników w dziale).</div>;
     }
 
@@ -55,10 +54,11 @@ export default function ScheduleTableView({ month, year, events, holidays = [], 
                         <th className="p-2 border-r sticky left-0 bg-gray-50 z-10 w-48 text-left">Pracownik</th>
                         {daysInMonth.map(day => {
                             const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                            const isHoliday = holidays.some(h => h.date === format(day, 'yyyy-MM-dd'));
                             return (
-                                <th 
-                                    key={day.toISOString()} 
-                                    className={`p-2 border-r text-center min-w-[60px] ${isWeekend ? 'bg-red-50 text-red-600' : ''}`}
+                                <th
+                                    key={day.toISOString()}
+                                    className={`p-2 border-r text-center min-w-[60px] ${isHoliday ? 'bg-amber-50 text-amber-700' : isWeekend ? 'bg-red-50 text-red-600' : ''}`}
                                 >
                                     <div>{format(day, 'dd')}</div>
                                     <div className="text-[10px] font-normal text-muted-foreground">{format(day, 'E', { locale: pl }).toUpperCase()}</div>
@@ -68,42 +68,56 @@ export default function ScheduleTableView({ month, year, events, holidays = [], 
                     </tr>
                 </thead>
                 <tbody>
-                    {usersMap.map(user => (
+                    {users.map(user => (
                         <tr key={user.id} className="border-b hover:bg-gray-50">
                             <td className="p-2 border-r sticky left-0 bg-white z-10 font-medium">
                                 {user.first_name} {user.last_name}
                             </td>
                             {daysInMonth.map(day => {
                                 const dateStr = format(day, 'yyyy-MM-dd');
-                                const ev = getEventForDay(user.id, day);
                                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                                const isHoliday = holidays.find(h => h.date === dateStr);
-                                
+                                const holiday = holidays.find(h => h.date === dateStr);
+                                const cell = resolveScheduleCell({
+                                    event: getEventForDay(user.id, dateStr),
+                                    absencePending: absenceIndex.get(`${user.id}|${dateStr}`),
+                                    holiday,
+                                    isWeekend,
+                                    workOnWeekends: overlay.workOnWeekends,
+                                    workOnHolidays: overlay.workOnHolidays,
+                                    includePending: true,
+                                });
+
                                 let bgClass = isWeekend ? 'bg-red-50/30' : '';
-                                let text = '-';
                                 let textColor = 'text-gray-300';
-                                
-                                if (isHoliday) {
+                                let text = '-';
+                                let title = 'Brak przypisania';
+
+                                if (cell.kind === 'absence') {
+                                    bgClass = cell.pending ? 'bg-violet-50' : 'bg-violet-100';
+                                    textColor = cell.pending ? 'text-violet-500 font-bold' : 'text-violet-700 font-bold';
+                                    text = cell.label;
+                                    title = cell.pending
+                                        ? 'Wniosek o nieobecność oczekuje na akceptację'
+                                        : `Nieobecność${cell.needsReplacement ? ' — zmiana wymaga zastępstwa' : ''}${cell.plannedHours ? ` (planowana zmiana ${cell.plannedHours})` : ''}`;
+                                } else if (cell.kind === 'holiday') {
                                     bgClass = 'bg-amber-50';
                                     textColor = 'text-amber-600 font-bold';
-                                    text = 'WOLNE';
-                                } else if (ev) {
-                                    if (['on_leave', 'sick_leave', 'replacement_needed'].includes(ev.status)) {
-                                        bgClass = ev.status === 'on_leave' ? 'bg-violet-100' : 'bg-rose-100';
-                                        textColor = ev.status === 'on_leave' ? 'text-violet-700 font-bold' : 'text-rose-700 font-bold';
-                                        text = getScheduleCellLabel(ev.status, ev.raw?.requires_replacement, ev.raw?.shift_name);
-                                    } else {
-                                        bgClass = 'bg-blue-50';
-                                        textColor = 'text-blue-700 font-medium';
-                                        text = getScheduleCellLabel(ev.status, false, ev.raw.shift_name);
-                                    }
+                                    text = cell.label;
+                                    title = cell.holidayName;
+                                } else if (cell.kind === 'shift') {
+                                    bgClass = cell.isHoliday ? 'bg-amber-50' : 'bg-blue-50';
+                                    textColor = 'text-blue-700 font-medium';
+                                    text = cell.hours;
+                                    title = `${cell.shiftName} (${cell.hours})${cell.holidayName ? ` — praca w święto: ${cell.holidayName}` : ''}`;
+                                } else if (cell.isHoliday) {
+                                    bgClass = 'bg-amber-50/50';
                                 }
 
                                 return (
-                                    <td 
-                                        key={day.toISOString()} 
+                                    <td
+                                        key={day.toISOString()}
                                         className={`p-2 border-r text-center ${bgClass} ${textColor} text-xs`}
-                                        title={isHoliday ? isHoliday.name : (ev ? `${ev.raw.shift_name} (${ev.raw.start_time} - ${ev.raw.end_time})` : 'Brak przypisania')}
+                                        title={title}
                                     >
                                         {text}
                                     </td>
@@ -113,6 +127,12 @@ export default function ScheduleTableView({ month, year, events, holidays = [], 
                     ))}
                 </tbody>
             </table>
+            <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+                <span>{SCHEDULE_LEGEND.absence}</span>
+                <span>{SCHEDULE_LEGEND.replacement}</span>
+                <span>{SCHEDULE_LEGEND.pending}</span>
+                {!overlay.workOnHolidays && <span>{SCHEDULE_LEGEND.holiday}</span>}
+            </div>
         </div>
     );
 }

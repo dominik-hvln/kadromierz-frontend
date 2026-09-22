@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { ABSENCE_TYPE_OPTIONS } from '@/lib/absence-types';
 
 const formSchema = z.object({
     type: z.string().min(1, "Wybierz typ nieobecności."),
@@ -57,10 +58,9 @@ export default function CreateAbsenceForm({ onSuccess }: Props) {
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Wybierz typ..." /></SelectTrigger></FormControl>
                             <SelectContent>
-                                <SelectItem value="urlop_wypoczynkowy">Urlop Wypoczynkowy</SelectItem>
-                                <SelectItem value="l4">Zwolnienie Lekarskie (L4)</SelectItem>
-                                <SelectItem value="urlop_na_zadanie">Urlop na Żądanie</SelectItem>
-                                <SelectItem value="inne">Inne (np. opieka)</SelectItem>
+                                {ABSENCE_TYPE_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                         <FormMessage />
@@ -85,6 +85,9 @@ export default function CreateAbsenceForm({ onSuccess }: Props) {
                 <FormField control={form.control} name="reason" render={({ field }) => (
                     <FormItem><FormLabel>Komentarz / Powód (opcjonalnie)</FormLabel>
                         <FormControl><Textarea placeholder="Uwagi dla managera..." {...field} /></FormControl>
+                        <p className="text-xs text-muted-foreground">
+                            Powód i rodzaj nieobecności widzi tylko Twój przełożony i administrator. Na grafiku współpracownicy zobaczą wyłącznie, że Cię nie ma.
+                        </p>
                         <FormMessage />
                     </FormItem>
                 )} />

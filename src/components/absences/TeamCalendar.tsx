@@ -6,6 +6,7 @@ import { pl } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Absence } from '@/app/dashboard/absences/page';
 import { useMemo } from 'react';
+import { absenceTypeCode } from '@/lib/absence-types';
 
 const locales = {
   'pl': pl,
@@ -34,9 +35,8 @@ export default function TeamCalendar({ absences }: Props) {
             const endDate = new Date(a.end_date);
             endDate.setHours(23, 59, 59, 999);
 
-            let title = `${a.user?.first_name} ${a.user?.last_name || ''}`;
-            if (a.type === 'l4') title += ' (L4)';
-            if (a.type === 'urlop_na_zadanie') title += ' (NŻ)';
+            // Panel nieobecności: widzi go autor oraz manager/admin — tu rodzaj może być widoczny.
+            const title = `${a.user?.first_name} ${a.user?.last_name || ''} (${absenceTypeCode(a.type)})`;
 
             return {
                 id: a.id,

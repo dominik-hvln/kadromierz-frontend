@@ -10,28 +10,29 @@ import { CollectiveSchedulePDFDocument } from './CollectivePdfDocument';
 import { SingleUserPdfDocument } from './SingleUserPdfDocument';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import {
+    ScheduleOverlay,
+    SCHEDULE_LEGEND,
+    collectScheduleUsers,
+    indexOverlay,
+    resolveScheduleCell,
+} from '@/lib/schedule-display';
 
 interface ExportButtonsProps {
     month: number;
     year: number;
     events: any[];
     holidays: any[];
+    overlay: ScheduleOverlay;
     departmentId: string;
 }
 
-export default function ExportButtons({ month, year, events, holidays, departmentId }: ExportButtonsProps) {
+export default function ExportButtons({ month, year, events, holidays, overlay, departmentId }: ExportButtonsProps) {
     const [selectedUserForPrint, setSelectedUserForPrint] = React.useState<any>(null);
 
-    // users extracted from events
-    const users = React.useMemo(() => {
-        const usersMap = new Map();
-        events.forEach(e => {
-            if (!usersMap.has(e.userId) && e.raw?.users) {
-                usersMap.set(e.userId, e.raw.users);
-            }
-        });
-        return Array.from(usersMap.values()).sort((a, b) => a.last_name.localeCompare(b.last_name));
-    }, [events]);
+    // Wydruki pokazują tylko zaakceptowane nieobecności (bez wniosków oczekujących).
+    const users = React.useMemo(() => collectScheduleUsers(events, overlay, false), [events, overlay]);
+    const absenceIndex = React.useMemo(() => indexOverlay(overlay), [overlay]);
 
     if (!departmentId) return null;
 
@@ -45,26 +46,27 @@ export default function ExportButtons({ month, year, events, holidays, departmen
         // Header
         const header = ["Pracownik", ...daysInMonth.map(d => format(d, 'dd.MM'))];
         csvContent += header.join(";") + "\n";
-        
-        // Rows
+
+        // Rows — godziny zmian, wspólny znak nieobecności, święta wg ustawień firmy.
         users.forEach(user => {
             const row = [`${user.first_name} ${user.last_name}`];
             daysInMonth.forEach(day => {
                 const dateStr = format(day, 'yyyy-MM-dd');
-                const isHoliday = holidays.find(h => h.date === dateStr);
-                const ev = events.find(e => e.userId === user.id && e.raw?.date === dateStr);
-                
-                if (isHoliday) row.push('WOLNE');
-                else if (ev) {
-                    // Te same oznaczenia co w PDF — wcześniej urlop/L4 wyświetlał się jako nazwa zmiany.
-                    if (ev.status === 'on_leave') row.push('U');
-                    else if (ev.status === 'sick_leave') row.push('L4');
-                    else if (ev.status === 'replacement_needed') row.push('L4/URL');
-                    else row.push(ev.raw.shift_name);
-                } else row.push('-');
+                const cell = resolveScheduleCell({
+                    event: events.find(e => e.userId === user.id && e.raw?.date === dateStr),
+                    absencePending: absenceIndex.get(`${user.id}|${dateStr}`),
+                    holiday: holidays.find(h => h.date === dateStr),
+                    isWeekend: day.getDay() === 0 || day.getDay() === 6,
+                    workOnWeekends: overlay.workOnWeekends,
+                    workOnHolidays: overlay.workOnHolidays,
+                    includePending: false,
+                });
+                row.push(cell.label || '-');
             });
             csvContent += row.join(";") + "\n";
         });
+
+        csvContent += "\n" + [SCHEDULE_LEGEND.absence, SCHEDULE_LEGEND.replacement, ...(overlay.workOnHolidays ? [] : [SCHEDULE_LEGEND.holiday])].join(";") + "\n";
         
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -82,7 +84,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             const { pdf } = await import('@react-pdf/renderer');
             const { saveAs } = (await import('file-saver')).default;
             
-            const doc = <CollectiveSchedulePDFDocument month={month} year={year} events={events} holidays={holidays} />;
+            const doc = <CollectiveSchedulePDFDocument month={month} year={year} events={events} holidays={holidays} overlay={overlay} />;
             const asPdf = pdf(doc);
             
             const blob = await asPdf.toBlob();
@@ -109,7 +111,7 @@ export default function ExportButtons({ month, year, events, holidays, departmen
             const FileSaver = await import('file-saver');
             const saveAs = FileSaver.default?.saveAs || FileSaver.saveAs;
             
-            const doc = <SingleUserPdfDocument month={month} year={year} events={events} holidays={holidays} user={selectedUserForPrint} />;
+            const doc = <SingleUserPdfDocument month={month} year={year} events={events} holidays={holidays} overlay={overlay} user={selectedUserForPrint} />;
             const asPdf = pdf(doc);
             
             const blob = await asPdf.toBlob();

@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { ABSENCE_CODES_LEGEND } from '@/lib/absence-types';
 
 interface DailyCell {
     dayMinutes: number;
     nightMinutes: number;
     absenceMinutes: number;
-    code: 'U' | 'NŻ' | 'L4' | 'I' | 'ŚW' | null;
+    /** Literka rodzaju nieobecności (U, NŻ, L4, UO, OP, UB, I) albo ŚW; null = dzień przepracowany. */
+    code: string | null;
 }
 
 interface ReportDay {
@@ -52,7 +54,7 @@ interface MonthlyReport {
     rows: ReportRow[];
 }
 
-const LEGEND = 'U = urlop wypoczynkowy, NŻ = urlop na żądanie, L4 = zwolnienie lekarskie, I = inna nieobecność, ŚW = święto';
+const LEGEND = ABSENCE_CODES_LEGEND;
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
@@ -226,8 +228,12 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
                     14,
                     20,
                 );
-                doc.text(`Legenda: ${LEGEND}`, 14, 24);
-                doc.text(formatNote, 14, 28);
+                // Legenda może nie zmieścić się w jednej linii — zawijamy do szerokości strony.
+                const legendLines: string[] = doc.splitTextToSize(`Legenda: ${LEGEND}`, doc.internal.pageSize.getWidth() - 28);
+                doc.text(legendLines, 14, 24);
+                const noteY = 24 + legendLines.length * 3.5;
+                doc.text(formatNote, 14, noteY);
+                return noteY + 5; // startY tabeli
             };
 
             // Roboto zarejestrowaliśmy tylko w odmianie normalnej — bez tego autoTable
@@ -240,10 +246,10 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
 
             chunks.forEach((chunk, index) => {
                 if (index > 0) doc.addPage();
-                drawHeader(`Dni ${chunk[0].day}–${chunk[chunk.length - 1].day}`);
+                const startY = drawHeader(`Dni ${chunk[0].day}–${chunk[chunk.length - 1].day}`);
 
                 autoTable(doc, {
-                    startY: 33,
+                    startY,
                     head: [
                         // Etykieta dnia scalona nad parą kolumn dz./noc.
                         ['Pracownik', ...chunk.map((d) => ({ content: dayHeader(d, true), colSpan: 2 }))],
@@ -270,9 +276,9 @@ export function MonthlyReportExport({ userId, userLabel }: Props) {
 
             // Strona z podsumowaniem — w tym wyliczenie godzin nocnych.
             doc.addPage();
-            drawHeader('Podsumowanie miesiąca');
+            const summaryStartY = drawHeader('Podsumowanie miesiąca');
             autoTable(doc, {
-                startY: 33,
+                startY: summaryStartY,
                 head: [[
                     'Pracownik',
                     'Razem godz.',
