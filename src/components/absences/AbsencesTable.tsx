@@ -1,6 +1,9 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { Absence } from '@/app/dashboard/absences/page';
@@ -12,9 +15,18 @@ interface Props {
     isManagerView: boolean;
     onStatusChange?: (id: string, status: 'approved' | 'rejected') => void;
     onDelete?: (id: string) => void;
+    onDatesChange?: (id: string, startDate: string, endDate: string) => void;
 }
 
-export default function AbsencesTable({ absences, isLoading, isManagerView, onStatusChange, onDelete }: Props) {
+export default function AbsencesTable({ absences, isLoading, isManagerView, onStatusChange, onDelete, onDatesChange }: Props) {
+    const [editing, setEditing] = useState<Absence | null>(null);
+    const [dates, setDates] = useState({ start: '', end: '' });
+
+    const openEdit = (a: Absence) => {
+        setDates({ start: a.start_date.slice(0, 10), end: a.end_date.slice(0, 10) });
+        setEditing(a);
+    };
+
     if (isLoading) {
         return <div className="p-8 text-center text-muted-foreground">Ładowanie...</div>;
     }
@@ -22,6 +34,12 @@ export default function AbsencesTable({ absences, isLoading, isManagerView, onSt
     if (absences.length === 0) {
         return <div className="p-8 text-center text-muted-foreground">Brak wniosków do wyświetlenia.</div>;
     }
+
+    const fmt = (d: string) => format(new Date(d), 'dd.MM.yyyy');
+    const historyText = (a: Absence) =>
+        (a.date_changes || [])
+            .map(c => `${format(new Date(c.created_at), 'dd.MM.yyyy HH:mm')} ${c.changer?.first_name ?? ''} ${c.changer?.last_name ?? ''}: ${fmt(c.old_start_date)}–${fmt(c.old_end_date)} → ${fmt(c.new_start_date)}–${fmt(c.new_end_date)}`)
+            .join('\n');
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -40,6 +58,7 @@ export default function AbsencesTable({ absences, isLoading, isManagerView, onSt
     };
 
     return (
+        <>
         <Table>
             <TableHeader>
                 <TableRow>
@@ -69,7 +88,14 @@ export default function AbsencesTable({ absences, isLoading, isManagerView, onSt
                             </span>
                         </TableCell>
                         <TableCell>{format(new Date(absence.start_date), 'dd MMM yyyy', { locale: pl })}</TableCell>
-                        <TableCell>{format(new Date(absence.end_date), 'dd MMM yyyy', { locale: pl })}</TableCell>
+                        <TableCell>
+                            {format(new Date(absence.end_date), 'dd MMM yyyy', { locale: pl })}
+                            {!!absence.date_changes?.length && (
+                                <div className="text-xs text-amber-600" title={historyText(absence)}>
+                                    zmieniono termin ({absence.date_changes.length})
+                                </div>
+                            )}
+                        </TableCell>
                         <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(absence.status)}`}>
                                 {getStatusText(absence.status)}
@@ -89,6 +115,11 @@ export default function AbsencesTable({ absences, isLoading, isManagerView, onSt
                                     </Button>
                                 </>
                             )}
+                            {onDatesChange && absence.status === 'approved' && (
+                                <Button size="sm" variant="outline" onClick={() => openEdit(absence)}>
+                                    <Pencil className="h-4 w-4 mr-1" /> Zmień termin
+                                </Button>
+                            )}
                             {!isManagerView && absence.status === 'pending' && onDelete && (
                                 <Button size="icon" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => onDelete(absence.id)}>
                                     <Trash2 className="h-4 w-4" />
@@ -99,5 +130,26 @@ export default function AbsencesTable({ absences, isLoading, isManagerView, onSt
                 ))}
             </TableBody>
         </Table>
+        <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Zmień termin urlopu</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-2 gap-4">
+                    <label className="text-sm">Od<Input type="date" value={dates.start} onChange={(e) => setDates({ ...dates, start: e.target.value })} /></label>
+                    <label className="text-sm">Do<Input type="date" value={dates.end} min={dates.start} onChange={(e) => setDates({ ...dates, end: e.target.value })} /></label>
+                </div>
+                {!!editing?.date_changes?.length && (
+                    <div className="text-xs text-muted-foreground whitespace-pre-line border-t pt-2">
+                        <b>Historia zmian:</b>{'\n'}{historyText(editing)}
+                    </div>
+                )}
+                <div className="flex justify-end">
+                    <Button
+                        disabled={!dates.start || !dates.end || dates.end < dates.start}
+                        onClick={() => { onDatesChange?.(editing!.id, dates.start, dates.end); setEditing(null); }}
+                    >Zapisz</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

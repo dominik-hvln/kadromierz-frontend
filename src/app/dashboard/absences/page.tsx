@@ -26,6 +26,15 @@ export interface Absence {
     reviewed_by: string | null;
     created_at: string;
     user?: { id: string; first_name: string; last_name: string; manager_id: string | null };
+    date_changes?: {
+        id: string;
+        created_at: string;
+        old_start_date: string;
+        old_end_date: string;
+        new_start_date: string;
+        new_end_date: string;
+        changer: { first_name: string; last_name: string } | null;
+    }[];
     reviewer?: { id: string; first_name: string; last_name: string } | null;
 }
 
@@ -65,6 +74,16 @@ export default function AbsencesPage() {
             fetchAbsences();
         } catch (error) {
             toast.error('Błąd podczas zmiany statusu');
+        }
+    };
+
+    const handleDatesChange = async (id: string, startDate: string, endDate: string) => {
+        try {
+            await api.patch(`/absences/${id}/dates`, { startDate, endDate });
+            toast.success('Termin urlopu został zmieniony');
+            fetchAbsences();
+        } catch (error) {
+            toast.error('Błąd podczas zmiany terminu');
         }
     };
 
@@ -163,6 +182,7 @@ export default function AbsencesPage() {
                                     absences={teamAbsences} 
                                     isLoading={isLoading} 
                                     onStatusChange={handleStatusChange}
+                                    onDatesChange={user?.role === 'admin' ? handleDatesChange : undefined}
                                     isManagerView={true}
                                 />
                             </div>
